@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText, Wand2, Download, LogIn, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -11,8 +12,8 @@ export default function Landing() {
     <div className="flex flex-col min-h-screen">
       <header className="px-6 space-y-2 py-6 md:px-12 flex justify-between items-center sticky top-0 bg-[var(--color-background)]/80 backdrop-blur-md z-50 border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-[var(--color-primary)] rounded-lg flex items-center justify-center shadow-lg">
-            <Wand2 className="text-white w-6 h-6" />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-lg overflow-hidden bg-white">
+            <img src="/logo.png" alt="Q-Gen Logo" className="w-full h-full object-cover" />
           </div>
           <span className="text-2xl font-bold text-[var(--color-primary)] tracking-tight">Q-Gen</span>
         </div>
@@ -96,7 +97,12 @@ export default function Landing() {
       </main>
       
       <footer className="py-8 text-center text-gray-500 text-sm border-t border-gray-200 bg-white">
-        <p>&copy; {new Date().getFullYear()} Q-Gen Pedagogy Suite. Hak cipta dilindungi undang-undang.</p>
+        <p className="mb-2">&copy; {new Date().getFullYear()} Q-Gen Pedagogy Suite. Hak cipta dilindungi undang-undang.</p>
+        <div className="flex justify-center gap-4 text-xs">
+           <Link to="/privacy-policy" className="text-gray-400 hover:text-[var(--color-primary)] transition-colors">Kebijakan Privasi</Link>
+           <span>&bull;</span>
+           <Link to="/terms-of-service" className="text-gray-400 hover:text-[var(--color-primary)] transition-colors">Ketentuan Layanan</Link>
+        </div>
       </footer>
     </div>
   );

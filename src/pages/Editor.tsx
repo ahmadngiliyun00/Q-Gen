@@ -63,8 +63,8 @@ export default function Editor({ initialContent, onBack, format, isGenerating }:
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-              <div className="text-[#0056b3] font-black text-xl">Q</div>
+             <div className="w-8 h-8 bg-white rounded flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="Q-Gen Logo" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-xl font-semibold tracking-tight">Q-Gen <span className="font-light text-blue-100">| Editor</span></h1>
             <span className="ml-2 bg-blue-800 text-blue-100 border border-blue-400/30 text-xs px-2 py-0.5 rounded font-medium">

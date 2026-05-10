@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -62,16 +63,15 @@ export default function Dashboard() {
     <div className="flex flex-col h-screen bg-gray-50 font-sans overflow-hidden text-gray-900">
       <header className="h-16 bg-[#0056b3] text-white flex items-center justify-between px-8 shadow-md z-20 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-            <div className="text-[#0056b3] font-black text-xl">Q</div>
+          <div className="w-8 h-8 bg-white rounded flex items-center justify-center overflow-hidden">
+            <img src="/logo.png" alt="Q-Gen Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Q-Gen <span className="font-light text-blue-100">| Pedagogy Suite</span></h1>
         </div>
         <div className="flex items-center gap-6">
           <nav className="hidden md:flex gap-6 text-sm font-medium">
-            <a href="#" className="text-blue-100 hover:text-white transition-colors">Pustaka</a>
-            <a href="#" className="text-blue-100 hover:text-white transition-colors">Templat</a>
-            <a href="#" className="text-blue-100 hover:text-white transition-colors">Bantuan</a>
+            <Link to="/privacy-policy" className="text-blue-100 hover:text-white transition-colors">Kebijakan Privasi</Link>
+            <Link to="/terms-of-service" className="text-blue-100 hover:text-white transition-colors">Ketentuan Layanan</Link>
           </nav>
           <div className="flex items-center gap-3 pl-6 border-l border-blue-400">
             <div className="w-8 h-8 rounded-full bg-blue-800 flex items-center justify-center text-xs font-bold">
