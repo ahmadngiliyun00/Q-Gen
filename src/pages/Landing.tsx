@@ -45,11 +45,14 @@ export default function Landing() {
             <Wand2 className="w-4 h-4" />
             <span>Ditenagai oleh Gemini 3.1 Pro</span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900">
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 leading-tight">
             Ubah Materi Pembelajaran Menjadi <span className="text-[var(--color-primary)]">Kuis Siap Ujian</span> dalam Hitungan Detik.
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Q-Gen adalah aplikasi pedagogi bertenaga AI terbaik. Impor langsung dari Google Drive, terapkan Taksonomi Bloom, dan ekspor langsung ke format AIKEN atau PDF.
+          <h2 className="text-2xl md:text-3xl font-semibold text-[var(--color-accent)] mt-4">
+            Instant Exams, Zero Burnout.
+          </h2>
+          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed mt-6">
+            Kami memahami bahwa waktu pendidik sangat berharga. Terjebak dalam rutinitas administratif menyusun soal hanyalah memicu <em>burnout</em> dan merampas energi yang seharusnya diberikan kepada siswa. Q-Gen membebaskan Anda dari tugas yang melelahkan ini: impor materi Anda, terapkan Taksonomi Bloom, dan dapatkan soal yang 100% siap pakai.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
@@ -97,7 +100,7 @@ export default function Landing() {
       </main>
       
       <footer className="py-8 text-center text-gray-500 text-sm border-t border-gray-200 bg-white">
-        <p className="mb-2">&copy; {new Date().getFullYear()} Q-Gen Pedagogy Suite. Hak cipta dilindungi undang-undang.</p>
+        <p className="mb-2">&copy; {new Date().getFullYear()} Q-Gen: Instant Exams, Zero Burnout. Hak cipta dilindungi undang-undang.</p>
         <div className="flex justify-center gap-4 text-xs">
            <Link to="/privacy-policy" className="text-gray-400 hover:text-[var(--color-primary)] transition-colors">Kebijakan Privasi</Link>
            <span>&bull;</span>

@@ -66,7 +66,7 @@ export default function Dashboard() {
           <div className="w-8 h-8 bg-white rounded flex items-center justify-center overflow-hidden">
             <img src="/logo.png" alt="Q-Gen Logo" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">Q-Gen <span className="font-light text-blue-100">| Pedagogy Suite</span></h1>
+          <h1 className="text-xl font-semibold tracking-tight">Q-Gen <span className="font-light text-blue-100">| Instant Exams, Zero Burnout</span></h1>
         </div>
         <div className="flex items-center gap-6">
           <nav className="hidden md:flex gap-6 text-sm font-medium">
