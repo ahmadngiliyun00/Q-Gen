@@ -44,7 +44,7 @@ Untuk menjalankan Q-Gen di *environment* lokal Anda, ikuti langkah-langkah tekni
 
 **1. Clone Repositori**
 ```bash
-git clone https://github.com/your-repo-name/q-gen.git
+git clone https://github.com/ahmadngiliyun00/q-gen.git
 cd q-gen
 ```
 
