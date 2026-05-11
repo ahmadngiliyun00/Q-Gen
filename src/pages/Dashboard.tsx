@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight } from 'lucide-react';
+import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import Editor from './Editor';
@@ -38,21 +38,23 @@ export default function Dashboard() {
     setIsGenerating(true);
     setGeneratedContent(null);
     
-    // Switch to editor view with streaming state
-    setGeneratedContent(''); // Trigger Editor render
-    
-    import('../lib/gemini').then(async ({ generateQuizStream }) => {
-      await generateQuizStream(
-        additionalInstructions,
-        links.length,
-        format,
-        questionCount,
-        (chunk) => {
-          setGeneratedContent(chunk);
-        }
-      );
-      setIsGenerating(false);
-    });
+    // Show Wow Factor Loading State for a moment before switching
+    setTimeout(() => {
+      setGeneratedContent(''); // Trigger Editor render
+      
+      import('../lib/gemini').then(async ({ generateQuizStream }) => {
+        await generateQuizStream(
+          additionalInstructions,
+          links.length,
+          format,
+          questionCount,
+          (chunk) => {
+            setGeneratedContent(chunk);
+          }
+        );
+        setIsGenerating(false);
+      });
+    }, 2500);
   };
 
   if (generatedContent !== null) {
@@ -87,30 +89,25 @@ export default function Dashboard() {
       
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-80 bg-white border-r border-gray-200 hidden md:flex flex-col p-6 shadow-sm z-10 shrink-0">
+        <aside className="w-80 bg-[#f8fafc] border-r border-gray-200 hidden md:flex flex-col p-6 shadow-sm z-10 shrink-0">
           <div className="flex-grow overflow-y-auto space-y-6">
             <div>
-              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Library className="w-4 h-4" />
+              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Folder className="w-4 h-4" />
                 Pustaka
               </h2>
-              <ul className="space-y-1">
-                {['Biology Midterm', 'History Quiz 1', 'Physics Formulas'].map((item, i) => (
-                  <li key={i}>
-                    <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:text-[#0056b3] hover:bg-blue-50 rounded-md transition-colors flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-gray-400" />
-                      <span className="truncate">{item}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="text-center py-8 px-4 border border-dashed border-gray-200 rounded-xl bg-white shadow-sm">
+                 <Folder className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                 <p className="text-sm font-semibold text-gray-600">Belum ada pustaka</p>
+                 <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">Penilaian yang Anda simpan ke Google Drive akan muncul di sini.</p>
+              </div>
             </div>
           </div>
 
           <div className="mt-auto border-t border-gray-100 pt-6">
             <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                 <span className="text-xs font-semibold text-gray-700">Status Sistem</span>
               </div>
               <p className="text-[10px] text-gray-500 leading-relaxed">Terhubung ke Gemini 3.1 Pro. {isGuest ? 'Maksimal 5 soal per sesi.' : 'Fitur Pro aktif.'}</p>
@@ -120,15 +117,15 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <main className="flex-1 flex flex-col relative overflow-y-auto w-full p-8">
-          <div className="max-w-4xl w-full mx-auto space-y-8 pb-32">
+          <div className="max-w-7xl w-full mx-auto space-y-8 pb-32">
           
           <header className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Buat Penilaian Baru</h1>
-            <p className="text-gray-500">Sediakan materi pembelajaran Anda dan konfigurasikan preferensi keluaran.</p>
+            <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 drop-shadow-sm">Buat Penilaian Baru</h1>
+            <p className="text-gray-500 font-medium text-lg">Sediakan materi pembelajaran Anda dan konfigurasikan preferensi keluaran.</p>
           </header>
 
           {/* Drive Links Input */}
-          <section className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
+          <section className="bg-white rounded-2xl shadow-lg border border-gray-200 p-7 space-y-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <UploadCloud className="w-5 h-5 text-[var(--color-primary)]" />
@@ -140,20 +137,20 @@ export default function Dashboard() {
             </div>
 
             <form onSubmit={handleAddLink} className="relative">
-              <div className="flex shadow-sm rounded-lg border border-gray-200 focus-within:border-[var(--color-primary)] focus-within:ring-1 focus-within:ring-[var(--color-primary)] transition-all overflow-hidden bg-gray-50">
+              <div className="flex shadow-sm rounded-lg border border-gray-200 focus-within:ring-4 focus-within:ring-[#0056b3]/20 focus-within:border-[#0056b3] transition-all overflow-hidden bg-gray-50">
                 <input
                   type="url"
                   placeholder="Tempel tautan Google Drive (Docs, Slides, PDF)..."
                   value={currentLink}
                   onChange={(e) => setCurrentLink(e.target.value)}
-                  className="flex-grow px-4 py-3 bg-transparent outline-none text-sm placeholder:text-gray-400"
+                  className="flex-grow px-5 py-4 bg-transparent outline-none text-sm placeholder:text-gray-400"
                 />
                 <button
                   type="submit"
                   disabled={!currentLink.trim()}
-                  className="px-4 py-2 bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-colors font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:hover:bg-[var(--color-primary)]/10 disabled:hover:text-[var(--color-primary)]"
+                  className="px-6 py-4 bg-[#0056b3]/10 text-[#0056b3] hover:bg-[#0056b3] hover:text-white transition-colors font-semibold text-sm flex items-center gap-2 disabled:opacity-50 disabled:hover:bg-[#0056b3]/10 disabled:hover:text-[#0056b3]"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-5 h-5" />
                   Tambah Tautan
                 </button>
               </div>
@@ -190,7 +187,7 @@ export default function Dashboard() {
 
           {/* Configuration */}
           <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-7 space-y-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Settings className="w-5 h-5 text-gray-500" />
                 Parameter
@@ -206,11 +203,11 @@ export default function Dashboard() {
                       max={isGuest ? 5 : 50}
                       value={questionCount}
                       onChange={(e) => setQuestionCount(parseInt(e.target.value))}
-                      className="flex-grow accent-[var(--color-primary)]"
+                      className="flex-grow accent-[#ff8c00]"
                     />
-                    <span className="text-lg font-bold text-gray-900 w-8 text-center">{questionCount}</span>
+                    <span className="text-lg font-bold text-[#ff8c00] w-8 text-center">{questionCount}</span>
                   </div>
-                  {isGuest && <p className="text-xs text-[var(--color-accent)] font-medium">Batas tamu: 5 soal</p>}
+                  {isGuest && <p className="text-xs text-[#ff8c00] font-medium">Batas tamu: 5 soal</p>}
                 </div>
 
                 <div className="space-y-2 pt-2">
@@ -221,9 +218,9 @@ export default function Dashboard() {
                         key={f}
                         onClick={() => setFormat(f)}
                         className={cn(
-                          "py-2 text-sm font-medium rounded-lg border transition-all",
+                          "py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200",
                           format === f 
-                            ? "bg-[var(--color-primary)]/10 border-[var(--color-primary)] text-[var(--color-primary)]" 
+                            ? "bg-[#ff8c00]/10 border-[#ff8c00] text-[#cf7100]" 
                             : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
                         )}
                       >
@@ -235,13 +232,13 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-7 space-y-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
               <h2 className="text-lg font-semibold">Konteks Tambahan <span className="text-gray-400 font-normal text-sm">(Opsional)</span></h2>
               <textarea
                 value={additionalInstructions}
                 onChange={(e) => setAdditionalInstructions(e.target.value)}
                 placeholder="misalnya, Fokus spesifik pada Bab 2, buat lebih sulit (Tingkat C4), atau tempel teks di sini..."
-                className="w-full h-32 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm resize-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none"
+                className="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:ring-4 focus:ring-[#0056b3]/20 focus:border-[#0056b3] transition-all outline-none"
               />
             </div>
           </section>
@@ -254,10 +251,10 @@ export default function Dashboard() {
             onClick={handleGenerate}
             disabled={isGenerating || (links.length === 0 && !additionalInstructions.trim())}
             className={cn(
-              "pointer-events-auto flex items-center gap-3 px-10 py-5 rounded-2xl font-bold text-xl shadow-2xl transition-all duration-300",
+              "pointer-events-auto flex items-center gap-3 px-10 py-5 rounded-2xl font-bold text-xl shadow-2xl transition-all duration-300 outline-none",
               isGenerating || (links.length === 0 && !additionalInstructions.trim())
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed transform-none scale-100" 
-                : "bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(255,140,0,0.5)] scale-100 active:scale-95"
+                : "bg-[#ff8c00] text-white hover:bg-[#e67e00] hover:scale-105 hover:shadow-[0_20px_40px_-15px_rgba(255,140,0,0.6)] focus:ring-4 focus:ring-orange-300/50 active:scale-95"
             )}
           >
             {isGenerating ? (
@@ -276,6 +273,31 @@ export default function Dashboard() {
         </div>
       </main>
       </div>
+      {/* Wow Factor Loading Modal */}
+      <AnimatePresence>
+        {isGenerating && generatedContent === null && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-md"
+          >
+            <div className="flex flex-col items-center justify-center p-8 bg-white/90 rounded-3xl shadow-2xl border border-blue-100 max-w-sm text-center">
+              <div className="relative w-24 h-24 mb-6">
+                <div className="absolute inset-0 bg-[#ff8c00]/20 rounded-full animate-ping"></div>
+                <div className="absolute inset-2 bg-[#0056b3]/10 rounded-full animate-pulse"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Sparkles className="w-10 h-10 text-[#ff8c00] animate-pulse" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Mensintesis Data</h3>
+              <p className="text-sm font-medium text-gray-500 leading-relaxed">
+                Gemini sedang menganalisis materi Anda, mohon tunggu...
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
