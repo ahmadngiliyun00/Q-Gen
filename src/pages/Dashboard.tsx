@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles } from 'lucide-react';
+import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import Editor from './Editor';
 
+interface LinkItem {
+  id: string;
+  url: string;
+  name: string;
+}
+
 export default function Dashboard() {
   const { user, isGuest, logout } = useAuth();
   
-  const [links, setLinks] = useState<string[]>([]);
+  const [links, setLinks] = useState<LinkItem[]>([]);
   const [currentLink, setCurrentLink] = useState('');
   
   const [questionCount, setQuestionCount] = useState<number>(isGuest ? 5 : 10);
@@ -18,18 +24,53 @@ export default function Dashboard() {
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleAddLink = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null);
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
+
+  const handleAddLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentLink.trim() && !links.includes(currentLink.trim())) {
+    const url = currentLink.trim();
+    if (url && !links.find(l => l.url === url)) {
       if (links.length >= 10) return; // Limit to 10 files
-      setLinks([...links, currentLink.trim()]);
+      
+      let name = url;
+      if (url.includes('drive.google.com')) {
+        const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        const id = match ? match[1] : '';
+        name = `Dokumen Google Drive ${id ? '(' + id.substring(0, 8) + '...)' : ''}`;
+        
+        if (id && user?.accessToken) {
+          try {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=name`, {
+              headers: { 'Authorization': `Bearer ${user.accessToken}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.name) {
+                name = data.name;
+              }
+            }
+          } catch (error) {
+            console.error("Gagal mengambil nama file:", error);
+          }
+        }
+      }
+
+      setLinks(prev => [...prev, { id: crypto.randomUUID(), url, name }]);
       setCurrentLink('');
     }
   };
 
-  const removeLink = (linkToRemove: string) => {
-    setLinks(links.filter(l => l !== linkToRemove));
+  const removeLink = (idToRemove: string) => {
+    setLinks(links.filter(l => l.id !== idToRemove));
   };
 
   const handleGenerate = async () => {
@@ -37,24 +78,54 @@ export default function Dashboard() {
     
     setIsGenerating(true);
     setGeneratedContent(null);
+    setErrorMessage(null);
     
-    // Show Wow Factor Loading State for a moment before switching
-    setTimeout(() => {
-      setGeneratedContent(''); // Trigger Editor render
+    import('../lib/gemini').then(async ({ generateQuizStream }) => {
+      let isError = false;
+      let checkComplete = false;
+      let accumulatedText = "";
       
-      import('../lib/gemini').then(async ({ generateQuizStream }) => {
-        await generateQuizStream(
-          additionalInstructions,
-          links.length,
-          format,
-          questionCount,
-          (chunk) => {
-            setGeneratedContent(chunk);
+      await generateQuizStream(
+        additionalInstructions,
+        links.length,
+        format,
+        questionCount,
+        (chunk) => {
+          accumulatedText += chunk;
+          
+          if (!checkComplete) {
+             const upperText = accumulatedText.trimStart().toUpperCase();
+             const errorPrefix = "ERROR_INSUFFICIENT_DATA:";
+             
+             if (upperText.startsWith(errorPrefix)) {
+                 isError = true;
+                 checkComplete = true;
+             } else if (errorPrefix.startsWith(upperText)) {
+                 // Still forming the error string, wait for more chunks
+                 checkComplete = false;
+             } else {
+                 // Not an error, so completion check is done
+                 checkComplete = true;
+             }
           }
-        );
-        setIsGenerating(false);
-      });
-    }, 2500);
+
+          if (isError) {
+            const cleanError = accumulatedText.replace(/ERROR_INSUFFICIENT_DATA:/i, '').trim();
+            setErrorMessage(cleanError);
+          } else {
+            // Only update generation content if not an error
+             if (checkComplete) {
+                setGeneratedContent(accumulatedText);
+             }
+          }
+        }
+      );
+      
+      setIsGenerating(false);
+      if (isError) {
+        setGeneratedContent(null);
+      }
+    });
   };
 
   if (generatedContent !== null) {
@@ -163,13 +234,13 @@ export default function Dashboard() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    key={link}
+                    key={link.id}
                     className="flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-sm font-medium shadow-sm transition-all hover:shadow hover:-translate-y-0.5"
                   >
                     <FileText className="w-3.5 h-3.5" />
-                    <span className="max-w-[150px] truncate">{link}</span>
+                    <span className="max-w-[150px] truncate" title={link.url}>{link.name}</span>
                     <button 
-                      onClick={() => removeLink(link)}
+                      onClick={() => removeLink(link.id)}
                       className="ml-1 text-blue-400 hover:text-blue-600 rounded-full hover:bg-blue-200/50 p-0.5 transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -275,7 +346,7 @@ export default function Dashboard() {
       </div>
       {/* Wow Factor Loading Modal */}
       <AnimatePresence>
-        {isGenerating && generatedContent === null && (
+        {isGenerating && !errorMessage && generatedContent === null && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -294,6 +365,36 @@ export default function Dashboard() {
               <p className="text-sm font-medium text-gray-500 leading-relaxed">
                 Gemini sedang menganalisis materi Anda, mohon tunggu...
               </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Error Toast */}
+      <AnimatePresence>
+        {errorMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-50 max-w-sm w-full"
+          >
+            <div className="bg-white rounded-xl shadow-2xl border-l-4 border-l-red-500 border-y border-r border-gray-100 p-4 flex items-start gap-4">
+              <div className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0 pt-1">
+                <h3 className="text-sm font-bold text-gray-900 mb-1">Materi Tidak Memadai</h3>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  {errorMessage || "Input materi tidak memadai untuk dibuatkan soal."}
+                </p>
+              </div>
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </motion.div>
         )}

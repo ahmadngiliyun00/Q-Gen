@@ -16,13 +16,22 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('qgen_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  
+  const [isGuest, setIsGuest] = useState(() => {
+    return localStorage.getItem('qgen_guest') === 'true';
+  });
 
   const googleLogin = useGoogleLogin({
     onSuccess: (tokenResponse) => {
-      setUser({ accessToken: tokenResponse.access_token });
+      const newUser = { accessToken: tokenResponse.access_token };
+      setUser(newUser);
       setIsGuest(false);
+      localStorage.setItem('qgen_user', JSON.stringify(newUser));
+      localStorage.removeItem('qgen_guest');
     },
     scope: 'https://www.googleapis.com/auth/drive.readonly',
   });
@@ -34,11 +43,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     setIsGuest(false);
+    localStorage.removeItem('qgen_user');
+    localStorage.removeItem('qgen_guest');
   };
 
   const continueAsGuest = () => {
     setIsGuest(true);
     setUser(null);
+    localStorage.setItem('qgen_guest', 'true');
+    localStorage.removeItem('qgen_user');
   };
 
   return (

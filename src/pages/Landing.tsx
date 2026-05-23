@@ -1,12 +1,19 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText, Wand2, Download, LogIn, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 
 export default function Landing() {
-  const { login, continueAsGuest } = useAuth();
+  const { user, isGuest, login, continueAsGuest } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user || isGuest) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, isGuest, navigate]);
 
   return (
     <div className="flex flex-col min-h-screen">
