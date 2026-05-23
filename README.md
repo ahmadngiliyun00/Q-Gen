@@ -6,7 +6,13 @@
   ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
   ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
   ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat&logo=tailwind-css&logoColor=white)
-  ![Google Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-8E24AA?style=flat&logo=google&logoColor=white)
+  ![Google Gemini](https://img.shields.io/badge/Gemini_3.1_Pro-8E24AA?style=flat&logo=google&logoColor=white)
+
+  <br/>
+  <br/>
+
+  <a href="https://ais-pre-zavhhrlmhf2c67w5nvdn6m-632674473673.asia-east1.run.app" target="_blank"><img src="https://img.shields.io/badge/🚀_Coba_Live_App-Klik_Disini-FF4500?style=for-the-badge" alt="Live App" /></a>
+  <a href="#" target="_blank"><img src="https://img.shields.io/badge/🎥_Video_Demo-Segera_Hadir-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="Video Demo" /></a>
 </div>
 
 ---
@@ -19,7 +25,7 @@ Kami memahami bahwa waktu pendidik sangat berharga; Q-Gen hadir untuk meringanka
 
 ## 🎯 Permasalahan yang Diselesaikan
 
-Pembuatan instrumen penilaian (kuis dan ujian) merupakan beban administrasi harian yang sangat menyita waktu bagi para pendidik. Proses manual yang harus dilalui—mulai dari membaca literatur ekstensif, menyusun pengecoh pilihan ganda (*distractors*) yang valid, hingga memastikan kesesuaian dengan standar kompetensi—kerap kali memicu fenomena *burnout* di kalangan pengajar.
+Pembuatan paket soal (kuis dan ujian) merupakan beban administrasi harian yang sangat menyita waktu bagi para pendidik. Proses manual yang harus dilalui—mulai dari membaca literatur ekstensif, menyusun pengecoh pilihan ganda (*distractors*) yang valid, hingga memastikan kesesuaian dengan standar kompetensi—kerap kali memicu fenomena *burnout* di kalangan pengajar.
 
 Selain itu, kendala sekunder sering muncul: materi pembelajaran tersebar dan tersimpan di dalam repositori *cloud* (seperti Google Drive) tanpa adanya sistem ekstraksi cerdas. Akibatnya, pendidik menghabiskan lebih banyak waktu dan energi untuk rutinitas administratif ketimbang fokus pada peningkatan kualitas pembelajaran.
 
@@ -29,7 +35,7 @@ Dengan slogan **"Instant Exams, Zero Burnout"**, Q-Gen dirancang sebagai SPA (*S
 
 - **Integrasi Google Drive Langsung:** Pendidik cukup menempelkan tautan dokumen (Docs, Slides, PDF) tanpa harus menyalin teks panjang secara manual. Q-Gen menerapkan *recursive folder reading* untuk merayapi sub-folder dan mengekstrak materi besar secara otomatis.
 - **Mesin AI Berstandar Pedagogi:** Ditenagai oleh **Gemini 3.1 Pro** yang dibekali *System Instruction* pedagogis ketat, Q-Gen mampu menyusun soal berdasarkan Taksonomi Bloom (tingkat C2 hingga C4/HOTS). AI ini juga diperintahkan khusus untuk menciptakan *smart distractors* (pengecoh cerdas yang logis), meminimalkan waktu revisi guru.
-- **Siap Ujian & Ekspor Seketika:** Kuis secara otomatis dapat diekspor ke dalam format standar LMS murni (AIKEN Moodle) atau divaluasi ke dalam cetak PDF rapi (termasuk Kunci Jawaban). Siklus dari materi mentah menjadi alat evaluasi siap pakai dapat diselesaikan terhitung dalam hitungan detik.
+- **Siap Ujian & Ekspor Seketika:** Kuis secara otomatis dapat diekspor ke dalam format standar LMS murni (AIKEN Moodle) atau divaluasi ke dalam cetak PDF rapi (termasuk Kunci Jawaban). Siklus dari materi mentah menjadi paket soal siap pakai dapat diselesaikan terhitung dalam hitungan detik.
 
 ## 🌟 Keunikan Utama (Uniqueness)
 
@@ -46,7 +52,7 @@ Q-Gen diklasifikasikan dalam kategori **Education (Pendidikan)** sebagai pilar u
 ## ✨ Fitur Utama
 
 - 📂 **Integrasi Tautan Google Drive**: Mendukung penempatan tautan Google Docs, Slides, maupun PDF yang secara cerdas mengekstrak judul file menggunakan Google OAuth (Google Drive API).
-- 🧠 **Mesin AI Gemini 2.5 Flash**: Menghasilkan pertanyaan bermutu tinggi yang mematuhi standar pedagogi berbasis **Taksonomi Bloom** menggunakan parameter Prompting terstruktur (Zero and Few-shot prompting).
+- 🧠 **Mesin AI Gemini 3.1 Pro**: Menghasilkan pertanyaan bermutu tinggi yang mematuhi standar pedagogi berbasis **Taksonomi Bloom** menggunakan parameter Prompting terstruktur (Zero and Few-shot prompting).
 - 📤 **Ekspor Multiformat**: 
   - **AIKEN**: Format teks mentah yang siap diimpor ke dalam *Learning Management System* (LMS) seperti Moodle.
   - **PDF Profesional**: Lembar soal yang diformat secara rapi, elegan, dan dilengkapi dengan halaman khusus Kunci Jawaban.
@@ -99,7 +105,7 @@ npm run dev
 | :--- | :--- |
 | **Frontend Framework** | React, TypeScript, Vite |
 | **Desain & Styling** | Tailwind CSS, Lucide React, Motion (Framer Motion) |
-| **Pemrosesan (AI)** | @google/genai SDK (Gemini-2.5-flash) |
+| **Pemrosesan (AI)** | @google/genai SDK (Gemini 3.1 Pro) |
 | **Otentikasi & Sumber Data** | Google Drive API, Google Identity Services OAuth 2.0 |
 | **Parser Markdown** | React Markdown |
 

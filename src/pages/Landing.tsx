@@ -115,12 +115,14 @@ export default function Landing() {
         </motion.div>
       </main>
       
-      <footer className="py-8 text-center text-text-muted text-sm border-t border-border bg-surface">
-        <p className="mb-2">&copy; {new Date().getFullYear()} Q-Gen: Instant Exams, Zero Burnout. Hak cipta dilindungi undang-undang.</p>
-        <div className="flex justify-center gap-4 text-xs">
-           <Link to="/privacy-policy" className="text-text-secondary hover:text-primary transition-colors">Kebijakan Privasi</Link>
-           <span>&bull;</span>
-           <Link to="/terms-of-service" className="text-text-secondary hover:text-primary transition-colors">Ketentuan Layanan</Link>
+      <footer className="py-8 border-t border-border bg-surface">
+        <div className="max-w-6xl mx-auto px-6 max-h-screen flex flex-col md:flex-row items-center justify-between text-sm text-text-muted gap-4">
+          <p>&copy; 2026 Q-Gen | Instant Exams, Zero Burnout. All rights reserved.</p>
+          <div className="flex items-center gap-4 text-xs font-medium">
+             <Link to="/privacy-policy" className="text-text-secondary hover:text-primary transition-colors">Kebijakan Privasi</Link>
+             <span className="text-border">&bull;</span>
+             <Link to="/terms-of-service" className="text-text-secondary hover:text-primary transition-colors">Ketentuan Layanan</Link>
+          </div>
         </div>
       </footer>
     </div>

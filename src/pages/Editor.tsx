@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Download, FileJson, Save, Edit3, CheckCircle2, AlertTriangle, Loader2, ExternalLink, FileText } from 'lucide-react';
+import { ArrowLeft, Download, FileJson, Save, Edit3, CheckCircle2, AlertTriangle, Loader2, ExternalLink, FileText, Sun, Moon, Check } from 'lucide-react';
 import { cn, getExportFilename } from '../lib/utils';
+import { useTheme } from '../contexts/ThemeContext';
 import jsPDF from 'jspdf';
 
 const validateAikenBlock = (block: string): string | null => {
@@ -34,6 +35,7 @@ interface EditorProps {
 }
 
 export default function Editor({ initialContent, onBack, format, isGenerating, questionCount, title }: EditorProps) {
+  const { theme, toggleTheme } = useTheme();
   const [content, setContent] = useState(initialContent);
   const [isEditing, setIsEditing] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -44,6 +46,37 @@ export default function Editor({ initialContent, onBack, format, isGenerating, q
   const [includeAnswerKey, setIncludeAnswerKey] = useState(true);
   const [includeQuestionNumbers, setIncludeQuestionNumbers] = useState(true);
   const pdfOptionsRef = useRef<HTMLDivElement>(null);
+  
+  const editorScrollRef = useRef<HTMLTextAreaElement>(null);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const isSyncingLeftScroll = useRef(false);
+  const isSyncingRightScroll = useRef(false);
+
+  const handleEditorScroll = () => {
+    if (isSyncingLeftScroll.current) {
+      isSyncingLeftScroll.current = false;
+      return;
+    }
+    if (!editorScrollRef.current || !previewScrollRef.current) return;
+    
+    isSyncingRightScroll.current = true;
+    const { scrollTop, scrollHeight, clientHeight } = editorScrollRef.current;
+    const percentage = scrollTop / (scrollHeight - clientHeight);
+    previewScrollRef.current.scrollTop = percentage * (previewScrollRef.current.scrollHeight - previewScrollRef.current.clientHeight);
+  };
+
+  const handlePreviewScroll = () => {
+    if (isSyncingRightScroll.current) {
+      isSyncingRightScroll.current = false;
+      return;
+    }
+    if (!editorScrollRef.current || !previewScrollRef.current) return;
+    
+    isSyncingLeftScroll.current = true;
+    const { scrollTop, scrollHeight, clientHeight } = previewScrollRef.current;
+    const percentage = scrollTop / (scrollHeight - clientHeight);
+    editorScrollRef.current.scrollTop = percentage * (editorScrollRef.current.scrollHeight - editorScrollRef.current.clientHeight);
+  };
 
   // Sync content while generating
   React.useEffect(() => {
@@ -170,13 +203,23 @@ export default function Editor({ initialContent, onBack, format, isGenerating, q
         </div>
 
         <div className="flex items-center gap-3 relative">
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 rounded-md hover:bg-white/10 text-blue-100 hover:text-white transition-colors"
+            title={theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          
+          <div className="w-px h-6 bg-blue-700/50 mx-1"></div>
+
           {saveStatus === 'saved' ? (
             <button
               onClick={() => window.open('https://drive.google.com', '_blank')}
-              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-700/20 border border-emerald-500/30 hover:bg-emerald-700/30 rounded text-sm font-medium transition-colors text-emerald-400"
+              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 border border-emerald-500 hover:bg-emerald-500 rounded text-sm font-medium transition-colors text-white"
             >
-              <ExternalLink className="w-4 h-4" />
-              Buka di Drive
+              <Check className="w-4 h-4" />
+              Tersimpan!
             </button>
           ) : (
             <button
@@ -274,6 +317,8 @@ export default function Editor({ initialContent, onBack, format, isGenerating, q
             </button>
           </div>
           <textarea
+            ref={editorScrollRef}
+            onScroll={handleEditorScroll}
             className="flex-1 p-6 text-text-primary font-mono text-sm leading-relaxed outline-none resize-none bg-transparent"
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -295,7 +340,11 @@ export default function Editor({ initialContent, onBack, format, isGenerating, q
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-background">
+            <div 
+              ref={previewScrollRef}
+              onScroll={handlePreviewScroll}
+              className="flex-1 overflow-y-auto p-8 space-y-6 bg-background"
+            >
                {content ? content.split(/\\n\\n|\n\n/).filter(b => b.trim() !== '').map((block, i) => {
                   const aikenError = format === 'AIKEN' && !isGenerating ? validateAikenBlock(block) : null;
                   return (
@@ -304,7 +353,12 @@ export default function Editor({ initialContent, onBack, format, isGenerating, q
                          {(i + 1).toString().padStart(2, '0')}
                       </div>
                       <div className="whitespace-pre-wrap font-sans text-text-primary text-sm md:text-base">
-                        {block}
+                        {block.split('\n').map((line, j) => {
+                          if (line.trim().startsWith('ANSWER:')) {
+                            return <span key={j} className="text-green-500 dark:text-green-400 font-semibold">{line}<br/></span>;
+                          }
+                          return <span key={j}>{line}<br/></span>;
+                        })}
                       </div>
                       {aikenError && (
                         <div className="mt-4 text-xs text-red-600 flex items-start gap-2 bg-red-50 border border-red-100 p-2.5 rounded-md">

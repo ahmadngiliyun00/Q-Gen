@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles, AlertCircle, Globe, Lock, Sun, Moon, Info, Keyboard, Download, Presentation, File, LogOut, Edit3, Clipboard, BookmarkPlus, Trash2 } from 'lucide-react';
+import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles, AlertCircle, Globe, Lock, Sun, Moon, Info, Keyboard, Download, Presentation, File, LogOut, Edit3, Clipboard, BookmarkPlus, Trash2, Check, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, getExportFilename } from '../lib/utils';
 import Editor from './Editor';
@@ -29,12 +29,13 @@ interface QuizHistoryItem {
 
 function cleanDriveLink(url: string) {
   try {
-    const parsed = new URL(url);
-    const id = parsed.searchParams.get('id');
-    parsed.search = '';
-    if (id) {
-      parsed.searchParams.set('id', id);
+    const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/open?id=${match[1]}`;
     }
+
+    const parsed = new URL(url);
+    parsed.search = '';
     return parsed.href.replace(/\/$/, '');
   } catch (e) {
     return url;
@@ -67,6 +68,26 @@ export default function Dashboard() {
       const savedMateri = localStorage.getItem('qgen_saved_materi');
       if (savedMateri) {
         setSavedLinks(JSON.parse(savedMateri));
+      }
+      const savedLinksCurrent = localStorage.getItem('qgen_current_links');
+      if (savedLinksCurrent) {
+        setLinks(JSON.parse(savedLinksCurrent));
+      }
+      const savedSelected = localStorage.getItem('qgen_selected_links');
+      if (savedSelected) {
+        setSelectedLinks(new Set(JSON.parse(savedSelected)));
+      }
+      const savedInstructions = localStorage.getItem('qgen_additional_instructions');
+      if (savedInstructions) {
+        setAdditionalInstructions(savedInstructions);
+      }
+      const savedCount = localStorage.getItem('qgen_question_count');
+      if (savedCount) {
+        setQuestionCount(JSON.parse(savedCount));
+      }
+      const savedFormat = localStorage.getItem('qgen_format');
+      if (savedFormat) {
+        setFormat(savedFormat as any);
       }
     } catch (e) {}
   }, []);
@@ -129,6 +150,26 @@ export default function Dashboard() {
   const [format, setFormat] = useState<'AIKEN' | 'Esai'>('AIKEN');
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   
+  useEffect(() => {
+    localStorage.setItem('qgen_current_links', JSON.stringify(links));
+  }, [links]);
+
+  useEffect(() => {
+    localStorage.setItem('qgen_selected_links', JSON.stringify(Array.from(selectedLinks)));
+  }, [selectedLinks]);
+
+  useEffect(() => {
+    localStorage.setItem('qgen_additional_instructions', additionalInstructions);
+  }, [additionalInstructions]);
+
+  useEffect(() => {
+    localStorage.setItem('qgen_question_count', JSON.stringify(questionCount));
+  }, [questionCount]);
+
+  useEffect(() => {
+    localStorage.setItem('qgen_format', format);
+  }, [format]);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGenerateClicked, setIsGenerateClicked] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
@@ -343,6 +384,11 @@ export default function Dashboard() {
           items = items.slice(0, isGuest ? 3 : 25);
           localStorage.setItem('qgen_history', JSON.stringify(items));
           setHistory(items);
+          setLinks([]);
+          setSelectedLinks(new Set());
+          setAdditionalInstructions('');
+          setQuestionCount(isGuest ? 5 : 10);
+          setFormat('AIKEN');
         } catch (e) {
           console.error("Failed to save history", e);
         }
@@ -604,7 +650,9 @@ export default function Dashboard() {
                      <div key={item.id} className="relative group w-full flex items-center bg-surface border border-border rounded-lg shadow-sm hover:border-primary hover:shadow transition-all overflow-hidden p-2">
                        <div className="flex-1 min-w-0 pl-1 pr-3">
                          <h3 className="text-[13px] font-bold text-text-primary mb-1 truncate" title={item.name}>{item.name}</h3>
-                         <p className="text-[10px] text-text-muted truncate opacity-80">{item.url}</p>
+                         <p className="text-[10px] text-text-muted truncate opacity-80 font-mono" title={item.url}>
+                           {item.url.match(/id=([a-zA-Z0-9_-]+)/)?.[1] || item.url.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1] || item.url}
+                         </p>
                        </div>
                        <div className="flex shrink-0 items-center justify-end gap-1.5">
                          <button
@@ -634,14 +682,17 @@ export default function Dashboard() {
                                       return newSet;
                                    });
                                  }
-                               } else {
-                                 addToast('Info', 'Tautan sudah ada di daftar aktif', 'info');
                                }
                             }}
-                            title="Tambahkan ke Penilaian"
-                            className="p-2 border border-primary/20 text-primary hover:bg-primary hover:text-white rounded-md shadow-sm transition-colors"
+                            title={links.some(l => l.url === item.url) ? "Sudah ada di daftar" : "Tambahkan ke Penilaian"}
+                            disabled={links.some(l => l.url === item.url)}
+                            className={`p-2 border rounded-md shadow-sm transition-colors ${
+                               links.some(l => l.url === item.url)
+                               ? "border-green-500/30 text-green-500 bg-green-500/10 cursor-not-allowed" 
+                               : "border-primary/20 text-primary hover:bg-primary hover:text-white"
+                            }`}
                          >
-                            <ArrowRight className="w-4 h-4" />
+                            {links.some(l => l.url === item.url) ? <Check className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
                          </button>
                        </div>
                      </div>
@@ -719,8 +770,8 @@ export default function Dashboard() {
         <div className="max-w-4xl w-full mx-auto space-y-6 pb-4">
           
           <header className="space-y-2">
-            <h1 className="text-4xl font-extrabold tracking-tight text-text-primary drop-shadow-sm">Buat Penilaian Baru</h1>
-            <p className="text-text-muted font-medium text-lg">Sediakan materi pembelajaran Anda dan konfigurasikan preferensi keluaran.</p>
+            <h1 className="text-4xl font-extrabold tracking-tight text-text-primary drop-shadow-sm">Buat Paket Soal Baru</h1>
+            <p className="text-text-muted font-medium text-lg">Sediakan materi pembelajaran Anda dan atur format kuis yang diinginkan.</p>
           </header>
 
           {/* Drive Links Input */}
@@ -953,10 +1004,14 @@ export default function Dashboard() {
                 placeholder="misalnya, Fokus spesifik pada Bab 2, buat lebih sulit (Tingkat C4)..."
                 className="w-full h-32 p-4 bg-background border border-border rounded-xl text-sm text-text-primary placeholder:text-text-muted resize-none focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none"
               />
-              <div className="text-xs text-text-secondary bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-3 rounded-lg flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  <strong className="text-blue-700 dark:text-blue-400">Tips Prompt yang Baik:</strong> Berikan topik atau paragraf materi konkret jika tidak melampirkan berkas Drive.
+              <div className="text-xs text-blue-50 bg-gradient-to-r from-blue-900 via-blue-800 to-blue-700 border border-blue-600/50 p-4 md:p-5 rounded-xl flex items-start gap-3 md:gap-4 shadow-[0_4px_14px_0_rgba(29,78,216,0.39)]">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-amber-400 blur-md rounded-full opacity-60"></div>
+                  <Lightbulb className="w-5 h-5 text-amber-200 shrink-0 relative z-10" />
+                </div>
+                <p className="leading-relaxed font-medium">
+                  <strong className="text-white font-bold block mb-1">Tips Prompt yang Baik</strong> 
+                  Berikan topik atau paragraf materi konkret jika tidak melampirkan berkas Drive.
                 </p>
               </div>
             </div>
@@ -1011,6 +1066,14 @@ export default function Dashboard() {
             )}
           </AnimatePresence>
         </div>
+        <footer className="mt-8 py-6 text-center text-text-muted text-sm border-t border-border/50 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <p>&copy; 2026 Q-Gen | Instant Exams, Zero Burnout. All rights reserved.</p>
+          <div className="flex items-center gap-4 text-xs font-medium">
+             <Link to="/privacy-policy" className="text-text-secondary hover:text-primary transition-colors">Kebijakan Privasi</Link>
+             <span className="text-border">&bull;</span>
+             <Link to="/terms-of-service" className="text-text-secondary hover:text-primary transition-colors">Ketentuan Layanan</Link>
+          </div>
+        </footer>
       </main>
       </div>
 
