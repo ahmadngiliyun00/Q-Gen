@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles, AlertCircle, Globe, Lock, Sun, Moon, Info, Keyboard, Download, Presentation, File, LogOut, Edit3 } from 'lucide-react';
+import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles, AlertCircle, Globe, Lock, Sun, Moon, Info, Keyboard, Download, Presentation, File, LogOut, Edit3, Clipboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, getExportFilename } from '../lib/utils';
 import Editor from './Editor';
@@ -41,6 +41,7 @@ export default function Dashboard() {
   const { user, isGuest, logout } = useAuth();
   const { addToast } = useToast();
   const { theme, toggleTheme } = useTheme();
+  const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -519,10 +520,10 @@ export default function Dashboard() {
             <div className="flex items-center justify-between bg-background pl-3 rounded-xl border border-border shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 py-3">
                 {user?.picture ? (
-                  <img src={user.picture} alt={user.name || "User"} className="w-9 h-9 rounded-full object-cover" />
+                  <img src={user.picture} alt={user.name || "User"} className="w-9 h-9 rounded-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                    {isGuest ? 'G' : 'E'}
+                    {user?.name ? user.name.charAt(0).toUpperCase() : (isGuest ? 'G' : 'E')}
                   </div>
                 )}
                 <span className="text-sm font-semibold text-text-primary">{user?.name || (isGuest ? 'Pengguna Tamu' : 'Pendidik')}</span>
@@ -596,6 +597,24 @@ export default function Dashboard() {
                   className="flex-grow px-5 py-4 bg-transparent outline-none text-sm text-text-primary placeholder:text-text-muted"
                 />
                 
+                {currentLink.length < 15 && (
+                  <button
+                    type="button"
+                    title="Tempel dari Clipboard"
+                    onClick={async () => {
+                       try {
+                         const text = await navigator.clipboard.readText();
+                         if (text) setCurrentLink(text);
+                       } catch (err) {
+                         addToast('Gagal', 'Tidak dapat mengakses clipboard', 'error');
+                       }
+                    }}
+                    className="self-center mr-2 p-2 text-text-muted hover:text-primary hover:bg-surface rounded-md transition-colors"
+                  >
+                    <Clipboard className="w-5 h-5" />
+                  </button>
+                )}
+
                 {isFetchingTitle && (
                    <div className="absolute right-[150px] top-1/2 -translate-y-1/2">
                       <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
@@ -772,7 +791,7 @@ export default function Dashboard() {
                  <Wand2 className="w-6 h-6" />
                  Buat {questionCount} Soal
                  <kbd className="hidden sm:inline-flex items-center gap-1 ml-2 px-2 py-1 bg-black/10 text-white/90 text-[11px] font-mono rounded ring-1 ring-white/20">
-                    <span className="opacity-80">Ctrl</span>
+                    <span className="opacity-80">{isMac ? '⌘' : 'Ctrl'}</span>
                     <span>G</span>
                  </kbd>
                </>
@@ -822,34 +841,32 @@ export default function Dashboard() {
               animate={{ scale: 1 }}
               exit={{ scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full border border-gray-200"
+              className="bg-surface rounded-2xl shadow-xl p-6 max-w-md w-full border border-border"
             >
               <div className="flex items-center justify-between mb-6">
-                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                 <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
                     <Keyboard className="w-5 h-5 text-primary" />
                     Pintasan Keyboard
                  </h2>
-                 <button onClick={() => setShowShortcuts(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+                 <button onClick={() => setShowShortcuts(false)} className="p-2 hover:bg-background rounded-full transition-colors text-text-muted">
                     <X className="w-5 h-5" />
                  </button>
               </div>
               
               <div className="space-y-4">
-                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                    <span className="text-sm font-medium text-gray-700">Buat Penilaian</span>
-                    <div className="flex gap-1">
-                       <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono font-bold text-gray-600 shadow-sm">Ctrl</kbd>
-                       <span className="text-gray-400 font-bold">+</span>
-                       <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono font-bold text-gray-600 shadow-sm">G</kbd>
+                 <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-border">
+                    <span className="text-sm font-medium text-text-secondary">Buat Penilaian</span>
+                    <div className="flex items-center gap-1.5">
+                       <kbd className="px-2 py-1 bg-surface border border-border rounded text-xs font-mono font-bold text-text-primary shadow-sm">{isMac ? 'Cmd ⌘' : 'Ctrl'}</kbd>
+                       <span className="text-text-muted font-bold">+</span>
+                       <kbd className="px-2 py-1 bg-surface border border-border rounded text-xs font-mono font-bold text-text-primary shadow-sm">G</kbd>
                     </div>
                  </div>
                  
-                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                    <span className="text-sm font-medium text-gray-700">Tambah Tautan Materi</span>
+                 <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-border">
+                    <span className="text-sm font-medium text-text-secondary">Tambah Tautan Materi</span>
                     <div className="flex gap-1">
-                       <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono font-bold text-gray-600 shadow-sm">Ctrl</kbd>
-                       <span className="text-gray-400 font-bold">+</span>
-                       <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono font-bold text-gray-600 shadow-sm">Enter</kbd>
+                       <kbd className="px-2 py-1 bg-surface border border-border rounded text-xs font-mono font-bold text-text-primary shadow-sm">Enter</kbd>
                     </div>
                  </div>
               </div>
