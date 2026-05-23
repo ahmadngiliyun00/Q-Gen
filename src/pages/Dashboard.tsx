@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles, AlertCircle, Globe, Lock, Sun, Moon, Info, Keyboard, Download, Presentation, File, LogOut, Edit3, Clipboard } from 'lucide-react';
+import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles, AlertCircle, Globe, Lock, Sun, Moon, Info, Keyboard, Download, Presentation, File, LogOut, Edit3, Clipboard, BookmarkPlus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, getExportFilename } from '../lib/utils';
 import Editor from './Editor';
@@ -30,10 +30,14 @@ interface QuizHistoryItem {
 function cleanDriveLink(url: string) {
   try {
     const parsed = new URL(url);
+    const id = parsed.searchParams.get('id');
     parsed.search = '';
+    if (id) {
+      parsed.searchParams.set('id', id);
+    }
     return parsed.href.replace(/\/$/, '');
   } catch (e) {
-    return url.split('?')[0].replace(/\/$/, '');
+    return url;
   }
 }
 
@@ -51,6 +55,7 @@ export default function Dashboard() {
   
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
   const [links, setLinks] = useState<LinkItem[]>([]);
+  const [savedLinks, setSavedLinks] = useState<LinkItem[]>([]);
   const [currentLink, setCurrentLink] = useState('');
 
   useEffect(() => {
@@ -58,6 +63,10 @@ export default function Dashboard() {
       const saved = localStorage.getItem('qgen_history');
       if (saved) {
         setHistory(JSON.parse(saved));
+      }
+      const savedMateri = localStorage.getItem('qgen_saved_materi');
+      if (savedMateri) {
+        setSavedLinks(JSON.parse(savedMateri));
       }
     } catch (e) {}
   }, []);
@@ -146,6 +155,32 @@ export default function Dashboard() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
+  const handleSaveToMateri = () => {
+    const url = cleanDriveLink(currentLink.trim());
+    if (url && !savedLinks.find(l => l.url === url)) {
+      const maxSaved = isGuest ? 5 : 25;
+      
+      let name = previewTitle || url;
+      let isPublic = previewIsPublic;
+      let mimeType = previewMimeType;
+      
+      const newItem: LinkItem = {
+        id: crypto.randomUUID(),
+        url,
+        name,
+        isPublic,
+        mimeType: mimeType || undefined
+      };
+      
+      const newSaved = [newItem, ...savedLinks].slice(0, maxSaved);
+      setSavedLinks(newSaved);
+      localStorage.setItem('qgen_saved_materi', JSON.stringify(newSaved));
+      addToast('Tersimpan', 'Materi berhasil disimpan ke sidebar', 'success');
+    } else {
+      addToast('Info', 'Tautan sudah ada di daftar tersimpan', 'info');
+    }
+  };
+
   const handleAddLink = (e: React.FormEvent) => {
     e.preventDefault();
     const url = cleanDriveLink(currentLink.trim());
@@ -202,7 +237,12 @@ export default function Dashboard() {
   };
 
   const removeLink = (idToRemove: string) => {
-    setLinks(links.filter(l => l.id !== idToRemove));
+    setLinks(prev => prev.filter(l => l.id !== idToRemove));
+    setSelectedLinks(prev => {
+      const newSelected = new Set(prev);
+      newSelected.delete(idToRemove);
+      return newSelected;
+    });
   };
 
   const abortRef = React.useRef(false);
@@ -300,7 +340,7 @@ export default function Dashboard() {
              title,
              excerpt
           });
-          items = items.slice(0, 10);
+          items = items.slice(0, isGuest ? 3 : 25);
           localStorage.setItem('qgen_history', JSON.stringify(items));
           setHistory(items);
         } catch (e) {
@@ -338,6 +378,48 @@ export default function Dashboard() {
       setRenamingItem(null);
       setRenameInput('');
     }
+  };
+
+  const handleExportData = () => {
+    const data = { history, savedLinks };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `qgen-data-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    addToast('Sukses', 'Data berhasil diekspor', 'success');
+  };
+
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const content = event.target?.result as string;
+          const data = JSON.parse(content);
+          if (data && (Array.isArray(data.history) || Array.isArray(data.savedLinks))) {
+            const newHistory = Array.isArray(data.history) ? data.history.slice(0, isGuest ? 3 : 25) : [];
+            const newSavedLinks = Array.isArray(data.savedLinks) ? data.savedLinks.slice(0, isGuest ? 5 : 25) : [];
+            
+            setHistory(newHistory);
+            setSavedLinks(newSavedLinks);
+            localStorage.setItem('qgen_history', JSON.stringify(newHistory));
+            localStorage.setItem('qgen_saved_materi', JSON.stringify(newSavedLinks));
+            
+            addToast('Sukses', 'Data berhasil diimpor', 'success');
+          } else {
+            addToast('Kesalahan', 'Format data tidak valid', 'error');
+          }
+        } catch (err) {
+          addToast('Kesalahan', 'Gagal memproses berkas', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+    if (e.target) e.target.value = '';
   };
 
   const handleDirectDownload = async (e: React.MouseEvent, item: QuizHistoryItem) => {
@@ -440,10 +522,10 @@ export default function Dashboard() {
                 {history.length > 0 && (
                   <button 
                     onClick={handleClearHistory}
-                    className="text-[10px] text-red-500 hover:text-red-700 font-bold uppercase tracking-wider"
+                    className="p-1.5 text-text-muted hover:text-red-500 hover:bg-surface rounded-md transition-colors"
                     title="Hapus Riwayat"
                   >
-                    Hapus
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -454,26 +536,26 @@ export default function Dashboard() {
                    <p className="text-xs text-text-muted mt-1.5 leading-relaxed">Penilaian yang Anda hasilkan akan muncul di sini.</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                   {history.map((item) => (
-                     <div key={item.id} className="relative group w-full flex items-center bg-surface border border-border rounded-lg shadow-sm hover:border-primary hover:shadow transition-all overflow-hidden">
+                     <div key={item.id} className="relative group w-full flex items-center bg-surface border border-border rounded-lg shadow-sm hover:border-primary hover:shadow transition-all overflow-hidden p-2">
                        <button
                           onClick={() => {
                             setFormat(item.format as any);
                             setGeneratedContent(item.content);
                             setQuestionCount(item.questionCount);
                           }}
-                          className="flex-1 text-left p-3 pr-0"
+                          className="flex-1 text-left p-1.5 focus:outline-none min-w-0"
                        >
                           <div className="flex items-start justify-between">
-                            <h3 className="text-sm font-bold text-text-primary mb-1 truncate pr-2" title={item.title || `${item.questionCount} Soal ${item.format}`}>
+                            <h3 className="text-[13px] font-bold text-text-primary mb-1 truncate" title={item.title || `${item.questionCount} Soal ${item.format}`}>
                                {item.title || `${item.questionCount} Soal ${item.format}`}
                             </h3>
                           </div>
-                          {item.excerpt && <p className="text-[11px] text-text-muted line-clamp-2 leading-tight mb-1.5">{item.excerpt}</p>}
-                          <p className="text-[9px] text-text-tertiary font-mono">{new Date(item.date).toLocaleString('id-ID')}</p>
+                          {item.excerpt && <p className="text-[11px] text-text-muted line-clamp-2 leading-tight mb-1">{item.excerpt}</p>}
+                          <p className="text-[9px] text-text-tertiary font-mono font-medium">{new Date(item.date).toLocaleString('id-ID')}</p>
                        </button>
-                       <div className="flex flex-col h-full shrink-0 border-l border-border bg-background group-hover:bg-primary/5 transition-colors pl-0.5 pr-0.5 py-1 justify-center gap-1">
+                       <div className="shrink-0 pl-1">
                          <button
                             onClick={(e) => {
                                e.stopPropagation();
@@ -481,16 +563,85 @@ export default function Dashboard() {
                                setRenameInput(item.title || `${item.questionCount} Soal ${item.format}`);
                             }}
                             title="Ubah Nama"
-                            className="p-1.5 text-text-muted hover:text-primary bg-background hover:bg-surface rounded-md shadow-sm transition-colors border border-transparent hover:border-border"
+                            className="p-2 text-text-muted hover:text-primary bg-background hover:bg-border rounded-md transition-colors"
                          >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="w-4 h-4" />
+                         </button>
+                       </div>
+                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-4 mt-6">
+                <h2 className="text-xs font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
+                  <BookmarkPlus className="w-4 h-4" />
+                  Materi Tersimpan
+                </h2>
+                {savedLinks.length > 0 && (
+                  <button 
+                    onClick={() => {
+                      setSavedLinks([]);
+                      localStorage.removeItem('qgen_saved_materi');
+                    }}
+                    className="p-1.5 text-text-muted hover:text-red-500 hover:bg-surface rounded-md transition-colors"
+                    title="Kosongkan Pustaka Materi"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              
+              {savedLinks.length === 0 ? (
+                <div className="text-center py-6 px-4 border border-dashed border-border rounded-xl bg-background shadow-sm">
+                   <p className="text-[11px] text-text-muted leading-relaxed">Belum ada materi tersimpan.<br/>Simpan materi melalui input utama.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                  {savedLinks.map((item) => (
+                     <div key={item.id} className="relative group w-full flex items-center bg-surface border border-border rounded-lg shadow-sm hover:border-primary hover:shadow transition-all overflow-hidden p-2">
+                       <div className="flex-1 min-w-0 pl-1 pr-3">
+                         <h3 className="text-[13px] font-bold text-text-primary mb-1 truncate" title={item.name}>{item.name}</h3>
+                         <p className="text-[10px] text-text-muted truncate opacity-80">{item.url}</p>
+                       </div>
+                       <div className="flex shrink-0 items-center justify-end gap-1.5">
+                         <button
+                            onClick={(e) => {
+                               e.stopPropagation();
+                               const newSaved = savedLinks.filter(l => l.id !== item.id);
+                               setSavedLinks(newSaved);
+                               localStorage.setItem('qgen_saved_materi', JSON.stringify(newSaved));
+                            }}
+                            title="Hapus Materi"
+                            className="p-2 text-text-muted hover:text-red-500 bg-background hover:bg-red-500/10 rounded-md transition-colors"
+                         >
+                            <Trash2 className="w-4 h-4" />
                          </button>
                          <button
-                            onClick={(e) => handleDirectDownload(e, item)}
-                            title="Unduh"
-                            className="p-1.5 text-text-muted hover:text-primary bg-background hover:bg-surface rounded-md shadow-sm transition-colors border border-transparent hover:border-border"
+                            onClick={(e) => {
+                               e.stopPropagation();
+                               if (!links.find(l => l.url === item.url)) {
+                                 if (links.length >= 10) {
+                                   addToast('Penuh', 'Maksimal 10 tautan dapat ditambah', 'error');
+                                 } else {
+                                   const newLinkId = crypto.randomUUID();
+                                   setLinks(prev => [...prev, { ...item, id: newLinkId }]);
+                                   setSelectedLinks(prev => {
+                                      const newSet = new Set(prev);
+                                      newSet.add(newLinkId);
+                                      return newSet;
+                                   });
+                                 }
+                               } else {
+                                 addToast('Info', 'Tautan sudah ada di daftar aktif', 'info');
+                               }
+                            }}
+                            title="Tambahkan ke Penilaian"
+                            className="p-2 border border-primary/20 text-primary hover:bg-primary hover:text-white rounded-md shadow-sm transition-colors"
                          >
-                            <Download className="w-3.5 h-3.5" />
+                            <ArrowRight className="w-4 h-4" />
                          </button>
                        </div>
                      </div>
@@ -501,13 +652,30 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-auto border-t border-border pt-6 space-y-4">
-            <button 
-              onClick={() => setShowShortcuts(true)}
-              className="flex items-center gap-2 w-full p-2 text-xs font-semibold text-text-muted hover:text-text-primary hover:bg-background rounded-lg transition-colors"
-            >
-               <Keyboard className="w-4 h-4" />
-               Pintasan Keyboard
-            </button>
+            <div className="flex flex-col gap-1.5">
+              <button 
+                onClick={() => setShowShortcuts(true)}
+                className="flex items-center gap-2 w-full p-2 text-xs font-semibold text-text-muted hover:text-text-primary hover:bg-background rounded-lg transition-colors"
+              >
+                 <Keyboard className="w-4 h-4" />
+                 Pintasan Keyboard
+              </button>
+              
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleExportData}
+                  className="flex-1 flex justify-center items-center gap-2 p-2 text-xs font-semibold text-text-muted hover:text-text-primary hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border"
+                >
+                  <Download className="w-4 h-4" />
+                  Ekspor Data
+                </button>
+                <label className="flex-1 flex justify-center items-center gap-2 p-2 text-xs font-semibold text-text-muted hover:text-text-primary hover:bg-background rounded-lg transition-colors border border-transparent hover:border-border cursor-pointer">
+                  <UploadCloud className="w-4 h-4" />
+                  Impor Data
+                  <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
+                </label>
+              </div>
+            </div>
 
             <div className="p-4 bg-background rounded-lg border border-border">
               <div className="flex items-center gap-3 mb-2">
@@ -517,7 +685,7 @@ export default function Dashboard() {
               <p className="text-[10px] text-text-muted leading-relaxed">Terhubung ke Gemini 3.1 Pro. <br/>{isGuest ? 'Maksimal 5 soal per sesi.' : 'Fitur Pro aktif.'}</p>
             </div>
 
-            <div className="flex items-center justify-between bg-background pl-3 rounded-xl border border-border shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between bg-background pl-3 rounded-xl border border-border shadow-sm overflow-hidden mt-4">
               <div className="flex items-center gap-3 py-3">
                 {user?.picture ? (
                   <img src={user.picture} alt={user.name || "User"} className="w-9 h-9 rounded-full object-cover" referrerPolicy="no-referrer" />
@@ -535,6 +703,14 @@ export default function Dashboard() {
               >
                 <LogOut className="w-5 h-5" />
               </button>
+            </div>
+            
+            <div className="mt-6 border-t border-border pt-4 flex flex-col items-center justify-center gap-2 text-[10px] text-text-tertiary">
+              <div className="flex items-center gap-4">
+                <Link to="/privacy-policy" className="hover:text-primary transition-colors">Kebijakan Privasi</Link>
+                <Link to="/terms-of-service" className="hover:text-primary transition-colors">Ketentuan Layanan</Link>
+              </div>
+              <p>© {new Date().getFullYear()} Q-Gen. All rights reserved.</p>
             </div>
           </div>
         </aside>
@@ -558,7 +734,7 @@ export default function Dashboard() {
                 {links.length > 0 && selectedLinks.size > 0 && (
                   <button 
                     onClick={() => {
-                      setLinks(links.filter(l => !selectedLinks.has(l.id)));
+                      setLinks(prev => prev.filter(l => !selectedLinks.has(l.id)));
                       setSelectedLinks(new Set());
                     }}
                     className="text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1"
@@ -590,10 +766,19 @@ export default function Dashboard() {
             <form onSubmit={handleAddLink} className="relative">
               <div className="flex shadow-sm rounded-lg border border-border focus-within:ring-4 focus-within:ring-primary/20 focus-within:border-primary transition-all overflow-hidden bg-background">
                 <input
-                  type="url"
+                  type="text"
                   placeholder="Tempel tautan Google Drive (Docs, Slides, PDF)..."
                   value={currentLink}
                   onChange={(e) => setCurrentLink(e.target.value)}
+                  onKeyDown={(e) => {
+                     if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        const addBtn = document.getElementById('add-link-btn');
+                        if (addBtn && !addBtn.hasAttribute('disabled')) {
+                           addBtn.click();
+                        }
+                     }
+                  }}
                   className="flex-grow px-5 py-4 bg-transparent outline-none text-sm text-text-primary placeholder:text-text-muted"
                 />
                 
@@ -621,11 +806,23 @@ export default function Dashboard() {
                    </div>
                 )}
 
+                {currentLink.length >= 15 && (
+                  <button
+                    type="button"
+                    title="Simpan ke Materi Pembelajaran"
+                    onClick={handleSaveToMateri}
+                    disabled={isFetchingTitle}
+                    className="self-center mr-2 p-2 text-text-muted hover:text-emerald-500 hover:bg-emerald-500/10 rounded-md transition-colors disabled:opacity-50"
+                  >
+                    <BookmarkPlus className="w-5 h-5" />
+                  </button>
+                )}
+
                 <button
                   id="add-link-btn"
                   type="submit"
-                  disabled={!currentLink.trim() || isFetchingTitle}
-                  className="px-6 py-4 bg-accent text-white hover:bg-accent-hover transition-colors font-semibold text-sm flex items-center gap-2 disabled:opacity-50 disabled:bg-accent/50 disabled:cursor-not-allowed"
+                  disabled={!currentLink.trim()}
+                  className="px-6 py-4 bg-accent text-white hover:bg-accent-hover transition-colors font-semibold text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed z-10"
                 >
                   <Plus className="w-5 h-5" />
                   <span className="hidden sm:inline">Tambah Tautan</span>
@@ -813,15 +1010,6 @@ export default function Dashboard() {
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Footer Links */}
-          <footer className="mt-8 border-t border-border pt-6 pb-4 flex flex-col sm:flex-row items-center justify-between text-sm text-text-muted">
-            <p>© {new Date().getFullYear()} Q-Gen. All rights reserved.</p>
-            <div className="flex gap-6 mt-4 sm:mt-0">
-              <Link to="/privacy-policy" className="hover:text-primary transition-colors">Kebijakan Privasi</Link>
-              <Link to="/terms-of-service" className="hover:text-primary transition-colors">Ketentuan Layanan</Link>
-            </div>
-          </footer>
         </div>
       </main>
       </div>
