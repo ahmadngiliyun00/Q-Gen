@@ -32,13 +32,16 @@ interface EditorProps {
   isGenerating?: boolean;
   questionCount: number;
   title?: string;
+  onSaveContent?: (content: string) => void;
+  isSavedToDrive?: boolean;
+  onSaveToDrive?: () => void;
 }
 
-export default function Editor({ initialContent, onBack, format, isGenerating, questionCount, title }: EditorProps) {
+export default function Editor({ initialContent, onBack, format, isGenerating, questionCount, title, onSaveContent, isSavedToDrive, onSaveToDrive }: EditorProps) {
   const { theme, toggleTheme } = useTheme();
   const [content, setContent] = useState(initialContent);
   const [isEditing, setIsEditing] = useState(true);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(isSavedToDrive ? 'saved' : 'idle');
   
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -174,6 +177,9 @@ export default function Editor({ initialContent, onBack, format, isGenerating, q
     setSaveStatus('saving');
     setTimeout(() => {
       setSaveStatus('saved');
+      if (onSaveToDrive) {
+        onSaveToDrive();
+      }
     }, 1500);
   };
 
@@ -213,15 +219,17 @@ export default function Editor({ initialContent, onBack, format, isGenerating, q
           
           <div className="w-px h-6 bg-blue-700/50 mx-1"></div>
 
-          {saveStatus === 'saved' ? (
+          {onSaveContent && content !== initialContent && (
             <button
-              onClick={() => window.open('https://drive.google.com', '_blank')}
-              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 border border-emerald-500 hover:bg-emerald-500 rounded text-sm font-medium transition-colors text-white"
+              onClick={() => onSaveContent(content)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 border border-indigo-500 hover:bg-indigo-500 rounded text-sm font-medium transition-colors text-white"
             >
-              <Check className="w-4 h-4" />
-              Tersimpan!
+              <Save className="w-4 h-4" />
+              Simpan Perubahan
             </button>
-          ) : (
+          )}
+          
+          {isSavedToDrive || saveStatus === 'saved' ? null : (
             <button
               onClick={handleSaveToDrive}
               disabled={saveStatus !== 'idle' || isExporting}
@@ -309,12 +317,29 @@ export default function Editor({ initialContent, onBack, format, isGenerating, q
         )}>
           <div className="border-b border-border px-6 py-3 flex items-center justify-between bg-background">
             <span className="font-bold border-b-2 border-primary text-sm py-1 px-1">Konten Mentah</span>
-            <button 
-               onClick={() => setIsEditing(!isEditing)}
-               className="text-xs text-primary hover:underline font-medium"
-            >
-              {isEditing ? 'Perluas' : 'Tampilan Belah'}
-            </button>
+            <div className="flex items-center gap-4">
+              {onSaveContent && (
+                <button
+                  onClick={() => onSaveContent(content)}
+                  disabled={content === initialContent}
+                  className={cn(
+                    "text-xs font-medium px-3 py-1.5 rounded transition-colors flex items-center gap-1.5",
+                    content !== initialContent 
+                      ? "bg-primary text-primary-content hover:bg-primary/90"
+                      : "bg-surface border border-border text-text-muted cursor-not-allowed"
+                  )}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Simpan
+                </button>
+              )}
+              <button 
+                 onClick={() => setIsEditing(!isEditing)}
+                 className="text-xs text-primary hover:underline font-medium"
+              >
+                {isEditing ? 'Perluas' : 'Tampilan Belah'}
+              </button>
+            </div>
           </div>
           <textarea
             ref={editorScrollRef}
@@ -323,6 +348,7 @@ export default function Editor({ initialContent, onBack, format, isGenerating, q
             value={content}
             onChange={(e) => setContent(e.target.value)}
             spellCheck="false"
+            placeholder="Tulis konten mentah di sini, atau tempel soal untuk diulas..."
           />
         </div>
 

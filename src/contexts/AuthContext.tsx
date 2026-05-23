@@ -5,6 +5,7 @@ interface User {
   accessToken: string;
   name?: string;
   picture?: string;
+  email?: string;
 }
 
 interface AuthContextType {
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         if (res.ok) {
           const profile = await res.json();
-          newUser = { ...newUser, name: profile.name, picture: profile.picture };
+          newUser = { ...newUser, name: profile.name, picture: profile.picture, email: profile.email };
         }
       } catch (err) {
         console.error("Gagal mengambil profil", err);
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('qgen_user', JSON.stringify(newUser));
       localStorage.removeItem('qgen_guest');
     },
-    scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile',
+    scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
   });
 
   const login = () => {

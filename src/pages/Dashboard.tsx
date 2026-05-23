@@ -25,11 +25,12 @@ interface QuizHistoryItem {
   questionCount: number;
   title?: string;
   excerpt?: string;
+  isSavedToDrive?: boolean;
 }
 
 function cleanDriveLink(url: string) {
   try {
-    const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
       return `https://drive.google.com/open?id=${match[1]}`;
     }
@@ -61,36 +62,51 @@ export default function Dashboard() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('qgen_history');
+      const email = user?.email || 'guest';
+      const saved = localStorage.getItem(`qgen_history_${email}`);
       if (saved) {
         setHistory(JSON.parse(saved));
+      } else {
+        setHistory([]);
       }
-      const savedMateri = localStorage.getItem('qgen_saved_materi');
+      const savedMateri = localStorage.getItem(`qgen_saved_materi_${email}`);
       if (savedMateri) {
         setSavedLinks(JSON.parse(savedMateri));
+      } else {
+        setSavedLinks([]);
       }
-      const savedLinksCurrent = localStorage.getItem('qgen_current_links');
+      const savedLinksCurrent = localStorage.getItem(`qgen_current_links_${email}`);
       if (savedLinksCurrent) {
         setLinks(JSON.parse(savedLinksCurrent));
+      } else {
+        setLinks([]);
       }
-      const savedSelected = localStorage.getItem('qgen_selected_links');
+      const savedSelected = localStorage.getItem(`qgen_selected_links_${email}`);
       if (savedSelected) {
         setSelectedLinks(new Set(JSON.parse(savedSelected)));
+      } else {
+        setSelectedLinks(new Set());
       }
-      const savedInstructions = localStorage.getItem('qgen_additional_instructions');
+      const savedInstructions = localStorage.getItem(`qgen_additional_instructions_${email}`);
       if (savedInstructions) {
         setAdditionalInstructions(savedInstructions);
+      } else {
+        setAdditionalInstructions('');
       }
-      const savedCount = localStorage.getItem('qgen_question_count');
+      const savedCount = localStorage.getItem(`qgen_question_count_${email}`);
       if (savedCount) {
         setQuestionCount(JSON.parse(savedCount));
+      } else {
+        setQuestionCount(isGuest ? 5 : 10);
       }
-      const savedFormat = localStorage.getItem('qgen_format');
+      const savedFormat = localStorage.getItem(`qgen_format_${email}`);
       if (savedFormat) {
         setFormat(savedFormat as any);
+      } else {
+        setFormat('AIKEN');
       }
     } catch (e) {}
-  }, []);
+  }, [user?.email, isGuest]);
 
   
   const [debouncedLink, setDebouncedLink] = useState('');
@@ -116,7 +132,7 @@ export default function Dashboard() {
       return;
     }
     
-    const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
     const id = match ? match[1] : '';
     
     if (id && user?.accessToken) {
@@ -151,24 +167,24 @@ export default function Dashboard() {
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   
   useEffect(() => {
-    localStorage.setItem('qgen_current_links', JSON.stringify(links));
-  }, [links]);
+    localStorage.setItem(`qgen_current_links_${user?.email || 'guest'}`, JSON.stringify(links));
+  }, [links, user?.email]);
 
   useEffect(() => {
-    localStorage.setItem('qgen_selected_links', JSON.stringify(Array.from(selectedLinks)));
-  }, [selectedLinks]);
+    localStorage.setItem(`qgen_selected_links_${user?.email || 'guest'}`, JSON.stringify(Array.from(selectedLinks)));
+  }, [selectedLinks, user?.email]);
 
   useEffect(() => {
-    localStorage.setItem('qgen_additional_instructions', additionalInstructions);
-  }, [additionalInstructions]);
+    localStorage.setItem(`qgen_additional_instructions_${user?.email || 'guest'}`, additionalInstructions);
+  }, [additionalInstructions, user?.email]);
 
   useEffect(() => {
-    localStorage.setItem('qgen_question_count', JSON.stringify(questionCount));
-  }, [questionCount]);
+    localStorage.setItem(`qgen_question_count_${user?.email || 'guest'}`, JSON.stringify(questionCount));
+  }, [questionCount, user?.email]);
 
   useEffect(() => {
-    localStorage.setItem('qgen_format', format);
-  }, [format]);
+    localStorage.setItem(`qgen_format_${user?.email || 'guest'}`, format);
+  }, [format, user?.email]);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGenerateClicked, setIsGenerateClicked] = useState(false);
@@ -205,6 +221,12 @@ export default function Dashboard() {
       let isPublic = previewIsPublic;
       let mimeType = previewMimeType;
       
+      if (!previewTitle && url.includes('drive.google.com')) {
+        const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+        const idMatch = match ? match[1] : '';
+        name = `Dokumen Google Drive ${idMatch ? '(' + idMatch.substring(0, 8) + '...)' : ''}`;
+      }
+      
       const newItem: LinkItem = {
         id: crypto.randomUUID(),
         url,
@@ -215,7 +237,7 @@ export default function Dashboard() {
       
       const newSaved = [newItem, ...savedLinks].slice(0, maxSaved);
       setSavedLinks(newSaved);
-      localStorage.setItem('qgen_saved_materi', JSON.stringify(newSaved));
+      localStorage.setItem(`qgen_saved_materi_${user?.email || 'guest'}`, JSON.stringify(newSaved));
       addToast('Tersimpan', 'Materi berhasil disimpan ke sidebar', 'success');
     } else {
       addToast('Info', 'Tautan sudah ada di daftar tersimpan', 'info');
@@ -232,7 +254,7 @@ export default function Dashboard() {
       let isPublic = previewIsPublic;
       let id = '';
       if (url.includes('drive.google.com') && !previewTitle) {
-        const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        const match = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
         id = match ? match[1] : '';
         name = `Dokumen Google Drive ${id ? '(' + id.substring(0, 8) + '...)' : ''}`;
       }
@@ -365,7 +387,7 @@ export default function Dashboard() {
         );
       } else {
         try {
-          const saved = localStorage.getItem('qgen_history');
+          const saved = localStorage.getItem(`qgen_history_${user?.email || 'guest'}`);
           let items: QuizHistoryItem[] = saved ? JSON.parse(saved) : [];
           
           const title = `${questionCount} Soal ${format}`;
@@ -382,7 +404,7 @@ export default function Dashboard() {
              excerpt
           });
           items = items.slice(0, isGuest ? 3 : 25);
-          localStorage.setItem('qgen_history', JSON.stringify(items));
+          localStorage.setItem(`qgen_history_${user?.email || 'guest'}`, JSON.stringify(items));
           setHistory(items);
           setLinks([]);
           setSelectedLinks(new Set());
@@ -410,7 +432,7 @@ export default function Dashboard() {
 
   const handleClearHistory = () => {
     setHistory([]);
-    localStorage.removeItem('qgen_history');
+    localStorage.removeItem(`qgen_history_${user?.email || 'guest'}`);
     addToast('Sukses', 'Riwayat berhasil dihapus', 'success');
   };
 
@@ -419,7 +441,7 @@ export default function Dashboard() {
     if (renamingItem && renameInput.trim()) {
       const newHistory = history.map(h => h.id === renamingItem.id ? { ...h, title: renameInput.trim() } : h);
       setHistory(newHistory);
-      localStorage.setItem('qgen_history', JSON.stringify(newHistory));
+      localStorage.setItem(`qgen_history_${user?.email || 'guest'}`, JSON.stringify(newHistory));
       addToast('Sukses', 'Nama riwayat berhasil diubah', 'success');
       setRenamingItem(null);
       setRenameInput('');
@@ -452,8 +474,8 @@ export default function Dashboard() {
             
             setHistory(newHistory);
             setSavedLinks(newSavedLinks);
-            localStorage.setItem('qgen_history', JSON.stringify(newHistory));
-            localStorage.setItem('qgen_saved_materi', JSON.stringify(newSavedLinks));
+            localStorage.setItem(`qgen_history_${user?.email || 'guest'}`, JSON.stringify(newHistory));
+            localStorage.setItem(`qgen_saved_materi_${user?.email || 'guest'}`, JSON.stringify(newSavedLinks));
             
             addToast('Sukses', 'Data berhasil diimpor', 'success');
           } else {
@@ -505,7 +527,57 @@ export default function Dashboard() {
 
   if (generatedContent !== null && !isGenerating) {
     const activeItem = history.find(h => h.content === generatedContent);
-    return <Editor initialContent={generatedContent} onBack={() => { setGeneratedContent(null); setIsGenerating(false); setIsGenerateClicked(false); }} format={format} isGenerating={isGenerating} questionCount={questionCount} title={activeItem?.title} />;
+    return <Editor 
+             initialContent={generatedContent} 
+             onBack={() => { setGeneratedContent(null); setIsGenerating(false); setIsGenerateClicked(false); }} 
+             format={activeItem?.format as 'AIKEN'|'Esai' || format} 
+             isGenerating={isGenerating} 
+             questionCount={activeItem?.questionCount || questionCount} 
+             title={activeItem?.title}
+             isSavedToDrive={activeItem?.isSavedToDrive}
+             onSaveToDrive={() => {
+                if (activeItem) {
+                  const newHistory = history.map(h => h.id === activeItem.id ? { ...h, isSavedToDrive: true } : h);
+                  setHistory(newHistory);
+                  localStorage.setItem(`qgen_history_${user?.email || 'guest'}`, JSON.stringify(newHistory));
+                } else {
+                  const newItem: QuizHistoryItem = {
+                    id: crypto.randomUUID(),
+                    date: new Date().toISOString(),
+                    content: generatedContent,
+                    format: format,
+                    questionCount: questionCount,
+                    title: 'Editor',
+                    excerpt: generatedContent.split('\n')[0].substring(0, 100),
+                    isSavedToDrive: true
+                  };
+                  const newHistory = [newItem, ...history];
+                  setHistory(newHistory);
+                  localStorage.setItem(`qgen_history_${user?.email || 'guest'}`, JSON.stringify(newHistory));
+                }
+             }}
+             onSaveContent={(newContent) => {
+               if (activeItem) {
+                 const newHistory = history.map(h => h.id === activeItem.id ? { ...h, content: newContent } : h);
+                 setHistory(newHistory);
+                 localStorage.setItem(`qgen_history_${user?.email || 'guest'}`, JSON.stringify(newHistory));
+               } else {
+                 const newItem: QuizHistoryItem = {
+                   id: crypto.randomUUID(),
+                   date: new Date().toISOString(),
+                   content: newContent,
+                   format: format,
+                   questionCount: questionCount,
+                   title: 'Editor',
+                   excerpt: newContent.split('\n')[0].substring(0, 100)
+                 };
+                 const newHistory = [newItem, ...history];
+                 setHistory(newHistory);
+                 localStorage.setItem(`qgen_history_${user?.email || 'guest'}`, JSON.stringify(newHistory));
+               }
+               setGeneratedContent(newContent);
+             }}
+           />;
   }
 
   return (
@@ -518,6 +590,29 @@ export default function Dashboard() {
           <h1 className="text-xl font-semibold tracking-tight">Q-Gen <span className="hidden md:inline font-light text-blue-100">| Instant Exams, Zero Burnout</span></h1>
         </div>
         <div className="flex items-center gap-4">
+          <button 
+             onClick={() => {
+                setGeneratedContent('');
+                setIsGenerateClicked(false);
+                setIsGenerating(false);
+             }}
+             title="Buka Editor Kosong"
+             className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-800/80 hover:bg-blue-700 transition-colors text-blue-50 text-sm font-medium"
+          >
+             <Edit3 className="w-4 h-4" />
+             Editor
+          </button>
+          <button 
+             onClick={() => {
+                setGeneratedContent('');
+                setIsGenerateClicked(false);
+                setIsGenerating(false);
+             }}
+             className="sm:hidden p-2 rounded-full bg-blue-800/50 hover:bg-blue-700 transition-colors text-blue-100"
+             title="Buka Editor Kosong"
+          >
+             <Edit3 className="w-4 h-4" />
+          </button>
           <button 
              onClick={() => setIsLibraryOpen(true)}
              className="lg:hidden p-2 rounded-full bg-blue-800/50 hover:bg-blue-700 transition-colors text-blue-100"
@@ -585,13 +680,27 @@ export default function Dashboard() {
                 <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                   {history.map((item) => (
                      <div key={item.id} className="relative group w-full flex items-center bg-surface border border-border rounded-lg shadow-sm hover:border-primary hover:shadow transition-all overflow-hidden p-2">
+                       <div className="shrink-0 pr-1 mr-1 border-r border-border/50">
+                         <button
+                            onClick={(e) => {
+                               e.stopPropagation();
+                               const newHistory = history.filter(h => h.id !== item.id);
+                               setHistory(newHistory);
+                               localStorage.setItem(`qgen_history_${user?.email || 'guest'}`, JSON.stringify(newHistory));
+                            }}
+                            title="Hapus Penilaian"
+                            className="p-2 text-text-muted hover:text-red-500 bg-background hover:bg-red-500/10 rounded-md transition-colors"
+                         >
+                            <Trash2 className="w-4 h-4" />
+                         </button>
+                       </div>
                        <button
                           onClick={() => {
                             setFormat(item.format as any);
                             setGeneratedContent(item.content);
                             setQuestionCount(item.questionCount);
                           }}
-                          className="flex-1 text-left p-1.5 focus:outline-none min-w-0"
+                          className="flex-1 text-left p-1.5 focus:outline-none min-w-0 ml-1"
                        >
                           <div className="flex items-start justify-between">
                             <h3 className="text-[13px] font-bold text-text-primary mb-1 truncate" title={item.title || `${item.questionCount} Soal ${item.format}`}>
@@ -601,7 +710,7 @@ export default function Dashboard() {
                           {item.excerpt && <p className="text-[11px] text-text-muted line-clamp-2 leading-tight mb-1">{item.excerpt}</p>}
                           <p className="text-[9px] text-text-tertiary font-mono font-medium">{new Date(item.date).toLocaleString('id-ID')}</p>
                        </button>
-                       <div className="shrink-0 pl-1">
+                       <div className="shrink-0 flex items-center gap-1 pl-1 ml-1 border-l border-border/50">
                          <button
                             onClick={(e) => {
                                e.stopPropagation();
@@ -630,7 +739,7 @@ export default function Dashboard() {
                   <button 
                     onClick={() => {
                       setSavedLinks([]);
-                      localStorage.removeItem('qgen_saved_materi');
+                      localStorage.removeItem(`qgen_saved_materi_${user?.email || 'guest'}`);
                     }}
                     className="p-1.5 text-text-muted hover:text-red-500 hover:bg-surface rounded-md transition-colors"
                     title="Kosongkan Pustaka Materi"
@@ -648,25 +757,27 @@ export default function Dashboard() {
                 <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                   {savedLinks.map((item) => (
                      <div key={item.id} className="relative group w-full flex items-center bg-surface border border-border rounded-lg shadow-sm hover:border-primary hover:shadow transition-all overflow-hidden p-2">
-                       <div className="flex-1 min-w-0 pl-1 pr-3">
-                         <h3 className="text-[13px] font-bold text-text-primary mb-1 truncate" title={item.name}>{item.name}</h3>
-                         <p className="text-[10px] text-text-muted truncate opacity-80 font-mono" title={item.url}>
-                           {item.url.match(/id=([a-zA-Z0-9_-]+)/)?.[1] || item.url.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1] || item.url}
-                         </p>
-                       </div>
-                       <div className="flex shrink-0 items-center justify-end gap-1.5">
+                       <div className="shrink-0 pr-1 mr-1 border-r border-border/50">
                          <button
                             onClick={(e) => {
                                e.stopPropagation();
                                const newSaved = savedLinks.filter(l => l.id !== item.id);
                                setSavedLinks(newSaved);
-                               localStorage.setItem('qgen_saved_materi', JSON.stringify(newSaved));
+                               localStorage.setItem(`qgen_saved_materi_${user?.email || 'guest'}`, JSON.stringify(newSaved));
                             }}
                             title="Hapus Materi"
                             className="p-2 text-text-muted hover:text-red-500 bg-background hover:bg-red-500/10 rounded-md transition-colors"
                          >
                             <Trash2 className="w-4 h-4" />
                          </button>
+                       </div>
+                       <div className="flex-1 min-w-0 pl-1 pr-3 ml-1">
+                         <h3 className="text-[13px] font-bold text-text-primary mb-1 truncate" title={item.name}>{item.name}</h3>
+                         <p className="text-[10px] text-text-muted truncate opacity-80 font-mono" title={item.url}>
+                           {item.url.match(/id=([a-zA-Z0-9_-]+)/)?.[1] || item.url.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1] || item.url.match(/\/folders\/([a-zA-Z0-9_-]+)/)?.[1] || item.url}
+                         </p>
+                       </div>
+                       <div className="flex shrink-0 items-center justify-end gap-1.5 border-l border-border/50 pl-1 ml-1">
                          <button
                             onClick={(e) => {
                                e.stopPropagation();
@@ -934,9 +1045,10 @@ export default function Dashboard() {
 
                     <button 
                       onClick={() => removeLink(link.id)}
-                      className="ml-1 text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 rounded-full hover:bg-blue-200/50 p-0.5 transition-colors"
+                      title="Hapus referensi ini"
+                      className="ml-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 p-1 transition-colors"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </motion.div>
                 )})}
@@ -1017,8 +1129,23 @@ export default function Dashboard() {
             </div>
           </section>
 
+          <AnimatePresence>
+            {isGenerating && (
+              <motion.div
+                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                 animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                 className="w-full bg-surface rounded-xl p-4 sm:p-6 shadow-lg border border-border"
+              >
+                 <div className="w-full text-left">
+                   <GenerationProgress isGenerating={isGenerating} />
+                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Generate Action */}
-          <div className="pt-8 pb-4 flex justify-center w-full">
+          <div className="pt-4 pb-4 flex justify-center w-full">
             <button
               id="generate-btn"
               onClick={isGenerating ? handleCancelGenerate : handleGenerate}
@@ -1050,21 +1177,6 @@ export default function Dashboard() {
             )}
            </button>
           </div>
-
-          <AnimatePresence>
-            {isGenerating && (
-              <motion.div
-                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
-                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                className="w-full bg-surface rounded-xl p-4 sm:p-6 shadow-lg border border-border"
-              >
-                <div className="w-full text-left">
-                  <GenerationProgress isGenerating={isGenerating} />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
         <footer className="mt-8 py-6 text-center text-text-muted text-sm border-t border-border/50 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <p>&copy; 2026 Q-Gen | Instant Exams, Zero Burnout. All rights reserved.</p>
