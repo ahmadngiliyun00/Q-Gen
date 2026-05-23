@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Download, FileJson, Save, Edit3, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { ArrowLeft, Download, FileJson, Save, Edit3, CheckCircle2, AlertTriangle, Loader2, ExternalLink, FileText } from 'lucide-react';
+import { cn, getExportFilename } from '../lib/utils';
 import jsPDF from 'jspdf';
 
 const validateAikenBlock = (block: string): string | null => {
@@ -27,11 +27,13 @@ const validateAikenBlock = (block: string): string | null => {
 interface EditorProps {
   initialContent: string;
   onBack: () => void;
-  format: 'AIKEN' | 'PDF' | 'Esai';
+  format: 'AIKEN' | 'Esai';
   isGenerating?: boolean;
+  questionCount: number;
+  title?: string;
 }
 
-export default function Editor({ initialContent, onBack, format, isGenerating }: EditorProps) {
+export default function Editor({ initialContent, onBack, format, isGenerating, questionCount, title }: EditorProps) {
   const [content, setContent] = useState(initialContent);
   const [isEditing, setIsEditing] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -71,7 +73,8 @@ export default function Editor({ initialContent, onBack, format, isGenerating }:
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'qgen-export.txt';
+    const extension = format === 'AIKEN' ? 'txt' : 'doc';
+    link.download = getExportFilename(format, extension);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -80,6 +83,7 @@ export default function Editor({ initialContent, onBack, format, isGenerating }:
     setExportProgress(100);
     setTimeout(() => { setIsExporting(false); setExportProgress(0); }, 400);
   };
+
 
   const handleExportPDF = async () => {
     setShowPdfOptions(false);
@@ -101,6 +105,11 @@ export default function Editor({ initialContent, onBack, format, isGenerating }:
       processedContent = processedContent.replace(/^(?:\d+\.\s)/gm, '');
     }
     
+    // Add introductory text for AIKEN format in PDF as requested
+    if (format === 'AIKEN') {
+      processedContent = `Berikut adalah pertanyaan AIKEN:\n\n${processedContent}`;
+    }
+    
     processedContent = processedContent.replace(/\n{3,}/g, '\n\n').trim();
 
     await new Promise(r => setTimeout(r, 300));
@@ -108,8 +117,20 @@ export default function Editor({ initialContent, onBack, format, isGenerating }:
 
     const doc = new jsPDF();
     const splitText = doc.splitTextToSize(processedContent, 180);
-    doc.text(splitText, 15, 20);
-    doc.save('qgen-export.pdf');
+    
+    let y = 20;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    for (let i = 0; i < splitText.length; i++) {
+      if (y > pageHeight - 20) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(splitText[i], 15, y);
+      y += 6; // line height
+    }
+    
+    doc.save(getExportFilename(format, 'pdf'));
     
     setExportProgress(100);
     setTimeout(() => { setIsExporting(false); setExportProgress(0); }, 300);
@@ -120,9 +141,10 @@ export default function Editor({ initialContent, onBack, format, isGenerating }:
     setSaveStatus('saving');
     setTimeout(() => {
       setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
     }, 1500);
   };
+
+  const currentTitle = title || `${questionCount} Soal ${format}`;
 
   return (
     <div className="flex flex-col h-screen bg-background font-sans overflow-hidden text-text-primary">
@@ -140,7 +162,7 @@ export default function Editor({ initialContent, onBack, format, isGenerating }:
              <div className="w-8 h-8 bg-surface rounded flex items-center justify-center overflow-hidden">
               <img src="/logo.png" alt="Q-Gen Logo" className="w-full h-full object-cover" />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight">Q-Gen <span className="font-light text-blue-100">| Editor</span></h1>
+            <h1 className="text-xl font-semibold tracking-tight">{currentTitle}</h1>
             <span className="ml-2 bg-blue-800 text-blue-100 border border-blue-400/30 text-xs px-2 py-0.5 rounded font-medium">
               {format}
             </span>
@@ -148,14 +170,24 @@ export default function Editor({ initialContent, onBack, format, isGenerating }:
         </div>
 
         <div className="flex items-center gap-3 relative">
-          <button
-            onClick={handleSaveToDrive}
-            disabled={saveStatus !== 'idle' || isExporting}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-800 border border-blue-700 hover:bg-blue-700 rounded text-sm font-medium transition-colors disabled:opacity-50 text-blue-50"
-          >
-            {saveStatus === 'saved' ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Save className="w-4 h-4" />}
-            {saveStatus === 'saving' ? 'Menyimpan...' : saveStatus === 'saved' ? 'Tersimpan' : 'Simpan ke Drive'}
-          </button>
+          {saveStatus === 'saved' ? (
+            <button
+              onClick={() => window.open('https://drive.google.com', '_blank')}
+              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-700/20 border border-emerald-500/30 hover:bg-emerald-700/30 rounded text-sm font-medium transition-colors text-emerald-400"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Buka di Drive
+            </button>
+          ) : (
+            <button
+              onClick={handleSaveToDrive}
+              disabled={saveStatus !== 'idle' || isExporting}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-800 border border-blue-700 hover:bg-blue-700 rounded text-sm font-medium transition-colors disabled:opacity-50 text-blue-50"
+            >
+              {saveStatus === 'saving' ? <Loader2 className="w-4 h-4 animate-spin text-blue-200" /> : <Save className="w-4 h-4" />}
+              {saveStatus === 'saving' ? 'Menyimpan...' : 'Simpan ke Drive'}
+            </button>
+          )}
           
           <div className="w-px h-6 bg-blue-700 mx-1"></div>
 
@@ -164,8 +196,8 @@ export default function Editor({ initialContent, onBack, format, isGenerating }:
             disabled={isExporting}
             className="flex items-center gap-2 px-3 py-1.5 bg-surface text-primary hover:bg-background border border-border rounded text-sm font-medium transition-colors disabled:opacity-50"
           >
-            {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <FileJson className="w-4 h-4" />}
-            AIKEN
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : (format === 'AIKEN' ? <FileJson className="w-4 h-4" /> : <FileText className="w-4 h-4" />)}
+            {format === 'AIKEN' ? 'AIKEN' : 'DOC'}
           </button>
           
           <div className="relative" ref={pdfOptionsRef}>

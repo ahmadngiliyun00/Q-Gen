@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles, AlertCircle, Globe, Lock, Sun, Moon, Info, Keyboard, Download, Presentation, File, LogOut } from 'lucide-react';
+import { FileText, Wand2, Settings, Plus, X, UploadCloud, Library, Loader2, ArrowRight, Folder, Sparkles, AlertCircle, Globe, Lock, Sun, Moon, Info, Keyboard, Download, Presentation, File, LogOut, Edit3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, getExportFilename } from '../lib/utils';
 import Editor from './Editor';
 import { GenerationProgress } from '../components/GenerationProgress';
 
@@ -23,6 +23,8 @@ interface QuizHistoryItem {
   content: string;
   format: string;
   questionCount: number;
+  title?: string;
+  excerpt?: string;
 }
 
 function cleanDriveLink(url: string) {
@@ -43,6 +45,8 @@ export default function Dashboard() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [history, setHistory] = useState<QuizHistoryItem[]>([]);
+  const [renamingItem, setRenamingItem] = useState<QuizHistoryItem | null>(null);
+  const [renameInput, setRenameInput] = useState('');
   
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
   const [links, setLinks] = useState<LinkItem[]>([]);
@@ -112,7 +116,7 @@ export default function Dashboard() {
   }, [debouncedLink, user?.accessToken]);
   
   const [questionCount, setQuestionCount] = useState<number>(isGuest ? 5 : 10);
-  const [format, setFormat] = useState<'AIKEN' | 'PDF' | 'Esai'>('AIKEN');
+  const [format, setFormat] = useState<'AIKEN' | 'Esai'>('AIKEN');
   const [additionalInstructions, setAdditionalInstructions] = useState('');
   
   const [isGenerating, setIsGenerating] = useState(false);
@@ -159,6 +163,11 @@ export default function Dashboard() {
       const newLinkId = crypto.randomUUID();
       // Add instantly for fast UI feedback
       setLinks(prev => [...prev, { id: newLinkId, url, name, isPublic, mimeType: previewMimeType || undefined }]);
+      setSelectedLinks(prev => {
+        const newSet = new Set(prev);
+        newSet.add(newLinkId);
+        return newSet;
+      });
       setCurrentLink('');
       setPreviewTitle(null);
       setPreviewIsPublic(undefined);
@@ -202,11 +211,11 @@ export default function Dashboard() {
     setIsGenerating(false);
     setIsGenerateClicked(false);
     setGeneratedContent(null);
-    addToast('Info', 'Pembuatan penilaian dibatalkan.', 'default');
+    addToast('Info', 'Pembuatan penilaian dibatalkan.', 'info');
   };
 
   const handleGenerate = async () => {
-    if (links.length === 0 && !additionalInstructions) return;
+    if (selectedLinks.size === 0 && !additionalInstructions.trim()) return;
     
     abortRef.current = false;
     setIsGenerateClicked(true);
@@ -218,33 +227,34 @@ export default function Dashboard() {
       let checkComplete = false;
       let accumulatedText = "";
       
+      const activeLinkTitles = links.filter(l => selectedLinks.has(l.id)).map(l => l.name);
+
       const finalResult = await generateQuizStream(
         additionalInstructions,
-        links.length,
+        activeLinkTitles,
         format,
         questionCount,
         (chunk) => {
           if (abortRef.current) return;
-          accumulatedText += chunk;
+          accumulatedText = chunk;
           
           if (!checkComplete) {
              const upperText = accumulatedText.trimStart().toUpperCase();
-             const errorPrefix = "ERROR_INSUFFICIENT_DATA:";
-             
-             if (upperText.startsWith(errorPrefix)) {
+             if (upperText.includes("ERROR_INSUFFICIENT_DATA") || upperText.includes("KESALAHAN SAAT MEMBUAT SOAL")) {
                  isError = true;
                  checkComplete = true;
-             } else if (errorPrefix.startsWith(upperText)) {
-                 // Still forming the error string, wait for more chunks
-                 checkComplete = false;
-             } else {
-                 // Not an error, so completion check is done
+             } else if (upperText.length > 40) {
                  checkComplete = true;
+             }
+          } else {
+             const upperAccumulated = accumulatedText.trimStart().toUpperCase();
+             if (upperAccumulated.includes("ERROR_INSUFFICIENT_DATA") || upperAccumulated.includes("KESALAHAN SAAT MEMBUAT SOAL")) {
+                 isError = true;
              }
           }
 
           if (isError) {
-            const cleanError = accumulatedText.replace(/ERROR_INSUFFICIENT_DATA:/i, '').trim();
+             setGeneratedContent(null);
           } else {
               if (checkComplete) {
                 setGeneratedContent(accumulatedText);
@@ -258,11 +268,16 @@ export default function Dashboard() {
       setIsGenerating(false);
       setIsGenerateClicked(false);
       
+      const finalUpper = finalResult.trimStart().toUpperCase();
+      if (finalUpper.includes("ERROR_INSUFFICIENT_DATA") || finalUpper.includes("KESALAHAN SAAT MEMBUAT SOAL")) {
+          isError = true;
+      }
+      
       if (isError) {
         setGeneratedContent(null);
         addToast(
           'Materi Tidak Memadai', 
-          accumulatedText.replace(/ERROR_INSUFFICIENT_DATA:/i, '').trim() || 'Input materi tidak memadai untuk dibuatkan soal.', 
+          finalResult.replace(/\*?\*?ERROR_INSUFFICIENT_DATA:?\*?\*?\s*/i, '').trim() || 'Input materi tidak memadai untuk dibuatkan soal atau terjadi kesalahan server.', 
           'error',
           { label: 'Ulangi', onClick: handleGenerate }
         );
@@ -270,12 +285,19 @@ export default function Dashboard() {
         try {
           const saved = localStorage.getItem('qgen_history');
           let items: QuizHistoryItem[] = saved ? JSON.parse(saved) : [];
+          
+          const title = `${questionCount} Soal ${format}`;
+          const rawExcerpt = additionalInstructions || activeLinkTitles.join(', ') || finalResult.substring(0, 60);
+          const excerpt = rawExcerpt.substring(0, 70) + (rawExcerpt.length > 70 ? '...' : '');
+
           items.unshift({
              id: crypto.randomUUID(),
              date: new Date().toISOString(),
              content: isError ? '' : finalResult, 
              format,
-             questionCount
+             questionCount,
+             title,
+             excerpt
           });
           items = items.slice(0, 10);
           localStorage.setItem('qgen_history', JSON.stringify(items));
@@ -302,7 +324,19 @@ export default function Dashboard() {
   const handleClearHistory = () => {
     setHistory([]);
     localStorage.removeItem('qgen_history');
-    addToast('Sukses', 'Riwayat berhasil dihapus', 'default');
+    addToast('Sukses', 'Riwayat berhasil dihapus', 'success');
+  };
+
+  const handleRenameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (renamingItem && renameInput.trim()) {
+      const newHistory = history.map(h => h.id === renamingItem.id ? { ...h, title: renameInput.trim() } : h);
+      setHistory(newHistory);
+      localStorage.setItem('qgen_history', JSON.stringify(newHistory));
+      addToast('Sukses', 'Nama riwayat berhasil diubah', 'success');
+      setRenamingItem(null);
+      setRenameInput('');
+    }
   };
 
   const handleDirectDownload = async (e: React.MouseEvent, item: QuizHistoryItem) => {
@@ -312,7 +346,7 @@ export default function Dashboard() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `qgen-${item.format.toLowerCase()}.txt`;
+      link.download = getExportFilename(item.format, 'txt');
       link.click();
       URL.revokeObjectURL(url);
     } else if (item.format === 'PDF') {
@@ -320,8 +354,19 @@ export default function Dashboard() {
          const { jsPDF } = await import('jspdf');
          const doc = new jsPDF();
          const splitText = doc.splitTextToSize(item.content, 180);
-         doc.text(splitText, 15, 20);
-         doc.save('qgen-export.pdf');
+         
+         let y = 20;
+         const pageHeight = doc.internal.pageSize.height;
+         for (let i = 0; i < splitText.length; i++) {
+           if (y > pageHeight - 20) {
+             doc.addPage();
+             y = 20;
+           }
+           doc.text(splitText[i], 15, y);
+           y += 6;
+         }
+         
+         doc.save(getExportFilename(item.format, 'pdf'));
       } catch (err) {
          console.error(err);
          addToast('Kesalahan', 'Gagal mengunduh PDF', 'error');
@@ -330,7 +375,8 @@ export default function Dashboard() {
   };
 
   if (generatedContent !== null && !isGenerating) {
-    return <Editor initialContent={generatedContent} onBack={() => { setGeneratedContent(null); setIsGenerating(false); setIsGenerateClicked(false); }} format={format} isGenerating={isGenerating} />;
+    const activeItem = history.find(h => h.content === generatedContent);
+    return <Editor initialContent={generatedContent} onBack={() => { setGeneratedContent(null); setIsGenerating(false); setIsGenerateClicked(false); }} format={format} isGenerating={isGenerating} questionCount={questionCount} title={activeItem?.title} />;
   }
 
   return (
@@ -414,19 +460,38 @@ export default function Dashboard() {
                           onClick={() => {
                             setFormat(item.format as any);
                             setGeneratedContent(item.content);
+                            setQuestionCount(item.questionCount);
                           }}
-                          className="flex-1 text-left p-3"
+                          className="flex-1 text-left p-3 pr-0"
                        >
-                          <h3 className="text-sm font-bold text-text-primary mb-1">{item.questionCount} Soal {item.format}</h3>
-                          <p className="text-[10px] text-text-muted">{new Date(item.date).toLocaleString('id-ID')}</p>
+                          <div className="flex items-start justify-between">
+                            <h3 className="text-sm font-bold text-text-primary mb-1 truncate pr-2" title={item.title || `${item.questionCount} Soal ${item.format}`}>
+                               {item.title || `${item.questionCount} Soal ${item.format}`}
+                            </h3>
+                          </div>
+                          {item.excerpt && <p className="text-[11px] text-text-muted line-clamp-2 leading-tight mb-1.5">{item.excerpt}</p>}
+                          <p className="text-[9px] text-text-tertiary font-mono">{new Date(item.date).toLocaleString('id-ID')}</p>
                        </button>
-                       <button
-                          onClick={(e) => handleDirectDownload(e, item)}
-                          title="Unduh"
-                          className="p-3 text-text-muted hover:text-primary transition-colors bg-background hover:bg-primary/10 border-l border-border"
-                       >
-                          <Download className="w-4 h-4" />
-                       </button>
+                       <div className="flex flex-col h-full shrink-0 border-l border-border bg-background group-hover:bg-primary/5 transition-colors pl-0.5 pr-0.5 py-1 justify-center gap-1">
+                         <button
+                            onClick={(e) => {
+                               e.stopPropagation();
+                               setRenamingItem(item);
+                               setRenameInput(item.title || `${item.questionCount} Soal ${item.format}`);
+                            }}
+                            title="Ubah Nama"
+                            className="p-1.5 text-text-muted hover:text-primary bg-background hover:bg-surface rounded-md shadow-sm transition-colors border border-transparent hover:border-border"
+                         >
+                            <Edit3 className="w-3.5 h-3.5" />
+                         </button>
+                         <button
+                            onClick={(e) => handleDirectDownload(e, item)}
+                            title="Unduh"
+                            className="p-1.5 text-text-muted hover:text-primary bg-background hover:bg-surface rounded-md shadow-sm transition-colors border border-transparent hover:border-border"
+                         >
+                            <Download className="w-3.5 h-3.5" />
+                         </button>
+                       </div>
                      </div>
                   ))}
                 </div>
@@ -644,8 +709,8 @@ export default function Dashboard() {
 
                 <div className="space-y-2 pt-2">
                   <label className="text-sm font-medium text-text-secondary">Format Keluaran</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['AIKEN', 'PDF', 'Esai'] as const).map((f) => (
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['AIKEN', 'Esai'] as const).map((f) => (
                       <button
                         key={f}
                         onClick={() => setFormat(f)}
@@ -686,15 +751,15 @@ export default function Dashboard() {
             <button
               id="generate-btn"
               onClick={isGenerating ? handleCancelGenerate : handleGenerate}
-              disabled={!isGenerating && links.length === 0 && !additionalInstructions.trim()}
+              disabled={!isGenerating && selectedLinks.size === 0 && !additionalInstructions.trim()}
               className={cn(
                 "w-full md:w-1/2 justify-center flex items-center gap-3 px-10 py-5 rounded-2xl font-bold text-lg sm:text-xl shadow-2xl transition-all duration-300 outline-none",
-                !isGenerating && links.length === 0 && !additionalInstructions.trim()
+                !isGenerating && selectedLinks.size === 0 && !additionalInstructions.trim()
                   ? "bg-border text-text-muted cursor-not-allowed transform-none scale-100" 
                   : isGenerating
                   ? "bg-red-500 text-white hover:bg-red-600 focus:ring-4 focus:ring-red-300/50 active:scale-[0.98]"
                   : "bg-accent text-white hover:bg-accent-hover focus:ring-4 focus:ring-orange-300/50 active:scale-[0.98]",
-                !isGenerateClicked && !isGenerating && links.length > 0 && "animate-button-glow hover:animate-none active:animate-none"
+                !isGenerateClicked && !isGenerating && selectedLinks.size > 0 && "animate-button-glow hover:animate-none active:animate-none"
               )}
             >
             {isGenerating ? (
@@ -788,6 +853,55 @@ export default function Dashboard() {
                     </div>
                  </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Rename */}
+      <AnimatePresence>
+        {renamingItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={() => { setRenamingItem(null); setRenameInput(''); }}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-surface rounded-2xl shadow-xl p-6 w-full max-w-sm border border-border"
+            >
+              <h2 className="text-lg font-bold text-text-primary mb-4">Ubah Nama Riwayat</h2>
+              <form onSubmit={handleRenameSubmit}>
+                <input
+                  type="text"
+                  autoFocus
+                  value={renameInput}
+                  onChange={(e) => setRenameInput(e.target.value)}
+                  className="w-full px-4 py-2 border border-border bg-background rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 mb-6"
+                  placeholder="Nama riwayat..."
+                />
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setRenamingItem(null); setRenameInput(''); }}
+                    className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-background rounded-lg transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!renameInput.trim()}
+                    className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    Simpan
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

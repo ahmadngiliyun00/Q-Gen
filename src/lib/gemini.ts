@@ -54,6 +54,7 @@ C. Format Esai
 
 Batas Jumlah: 1-50 soal.
 Bahasa: Bahasa Indonesia Formal (EYD) kecuali diminta lain.
+Tanpa Fluff: DILARANG KERAS memberikan narasi pembuka (seperti "Berikut adalah...", "Ini dia soalnya...") atau penutup. Output HARUS murni berisi soal dan jawaban saja. Karakter pertama dari respons Anda harus langsung teks soal pertama!
 `;
 
 // In-memory cache for generation results
@@ -61,12 +62,12 @@ const generationCache = new Map<string, string>();
 
 export async function generateQuizStream(
   context: string,
-  linkCount: number,
+  linkTitles: string[],
   format: string,
   count: number,
   onChunk: (text: string) => void
 ): Promise<string> {
-  const cacheKey = JSON.stringify({ context, linkCount, format, count });
+  const cacheKey = JSON.stringify({ context, linkTitles, format, count });
   
   if (generationCache.has(cacheKey)) {
     const cachedResult = generationCache.get(cacheKey)!;
@@ -88,9 +89,13 @@ export async function generateQuizStream(
 
   const gemini = getGemini();
   
+  const linkContext = linkTitles.length > 0 
+    ? `\n[Materi Lampiran Tersimulasi: Pengguna telah melampirkan file dari Google Drive berjudul: ${linkTitles.map(t => '"'+t+'"').join(', ')}. Sebagai AI Q-Gen, Anda harus berasumsi bahwa Anda sudah membaca dokumen ini dan memahami isinya tentang topik tersebut. JANGAN PERNAH menolak dengan alasan belum membaca materi jika lampiran ini ada.]\n`
+    : '';
+
   if (!gemini) {
     // Fallback if no API key
-    const mockContent = `Penilaian ${format} (Simulasi ${count} soal)\n\nKonteks:\n${context}\n\nFile tertaut:\n${linkCount}\n\nApa fungsi dari HTTP?\nA. Perutean alamat\nB. Transfer file\nC. Enkripsi\nANSWER: B\n\n(Tambahkan API Key Gemini Anda di AI Studio untuk menggunakan model asli.)`;
+    const mockContent = `Penilaian ${format} (Simulasi ${count} soal)\n\nKonteks:\n${context}\n\nFile tertaut:\n${linkTitles.length}\n\nApa fungsi dari HTTP?\nA. Perutean alamat\nB. Transfer file\nC. Enkripsi\nANSWER: B\n\n(Tambahkan API Key Gemini Anda di AI Studio untuk menggunakan model asli.)`;
     return new Promise(resolve => {
       setTimeout(() => {
         onChunk(mockContent);
@@ -101,10 +106,10 @@ export async function generateQuizStream(
 
   const prompt = `
 USER INPUT STRUCTURE:
-Materi: ${context ? context : `[Pengguna melampirkan ${linkCount} file tautan Google Drive. Sebagai simulasi bacaan, asumsikan materi berfokus pada topik HTTP berdasarkan judul-judul file ini, atau fokuskan pada bidang umum jika tidak ada konteks.]`}
+Materi: ${context ? context : '(Tidak ada teks langsung)'}${linkContext}
 Format: ${format}
 Jumlah: ${count}
-Instruksi Tambahan: Harap hasilkan persis sesuai materi dan format di atas.
+Instruksi Tambahan: Harap hasilkan persis sejumlah ${count} soal sesuai materi dan format di atas. DILARANG KERAS memberikan kalimat pengantar (seperti "Berikut adalah X soal...", "Ini adalah pertanyaan...") atau kalimat penutup sama sekali. Baris pertama dari output Anda HARUS LANGSUNG berupa teks pertanyaan soal nomor 1. JANGAN memberikan soal lebih dari ${count}.
   `;
 
   try {
