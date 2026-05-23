@@ -44,14 +44,14 @@ Jika Anda memiliki pertanyaan tentang Ketentuan Layanan ini, silakan hubungi kam
 export default function TermsOfService() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="h-16 bg-[#0056b3] text-white flex items-center px-8 shadow-md">
+      <header className="h-16 bg-primary text-white flex items-center px-8 shadow-md">
         <Link to="/" className="flex items-center gap-2 text-blue-100 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
           <span className="text-sm font-medium">Kembali ke Beranda</span>
         </Link>
       </header>
       <main className="flex-1 max-w-4xl mx-auto w-full p-8 my-8 bg-white border border-gray-200 rounded-xl shadow-sm">
-        <div className="prose prose-blue max-w-none prose-headings:font-bold prose-a:text-[#0056b3] hover:prose-a:text-[#ff8c00] prose-headings:text-gray-900 prose-p:text-gray-600 prose-li:text-gray-600">
+        <div className="prose prose-blue max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-accent prose-headings:text-gray-900 prose-p:text-gray-600 prose-li:text-gray-600">
           <Markdown remarkPlugins={[remarkGfm]}>{termsOfServiceMd}</Markdown>
         </div>
       </main>

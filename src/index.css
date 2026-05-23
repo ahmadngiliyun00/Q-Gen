@@ -1,18 +1,90 @@
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
 
-@theme {
+:root {
   --color-primary: #0056b3;
   --color-primary-hover: #004494;
   --color-accent: #ff8c00;
   --color-accent-hover: #e07b00;
+
   --color-background: #f8fafc;
   --color-surface: #ffffff;
+  
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  
+  --color-border: #e2e8f0;
+  --color-border-hover: #cbd5e1;
+}
+
+.dark {
+  --color-primary: #3b82f6; 
+  --color-primary-hover: #60a5fa;
+
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #64748b;
+  
+  --color-border: #334155;
+  --color-border-hover: #475569;
+}
+
+@theme {
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  
+  --color-border: var(--color-border);
+  --color-border-hover: var(--color-border-hover);
   
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
 body {
   background-color: var(--color-background);
-  color: #1e293b;
+  color: var(--color-text-primary);
   font-family: var(--font-sans);
+}
+
+@keyframes move-stripes {
+  from {
+    background-position: 1rem 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+.animate-move-stripes {
+  animation: move-stripes 1s linear infinite;
+}
+
+@keyframes button-glow {
+  0%, 100% { box-shadow: 0 0 10px -2px var(--color-accent); }
+  50% { box-shadow: 0 0 25px 4px var(--color-accent); }
+}
+
+.animate-button-glow {
+  animation: button-glow 2s ease-in-out infinite;
+}
+
+#generate-btn {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+}
+
+#generate-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 15px 30px -5px var(--color-accent);
 }

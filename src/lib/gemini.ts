@@ -56,6 +56,9 @@ Batas Jumlah: 1-50 soal.
 Bahasa: Bahasa Indonesia Formal (EYD) kecuali diminta lain.
 `;
 
+// In-memory cache for generation results
+const generationCache = new Map<string, string>();
+
 export async function generateQuizStream(
   context: string,
   linkCount: number,
@@ -63,6 +66,26 @@ export async function generateQuizStream(
   count: number,
   onChunk: (text: string) => void
 ): Promise<string> {
+  const cacheKey = JSON.stringify({ context, linkCount, format, count });
+  
+  if (generationCache.has(cacheKey)) {
+    const cachedResult = generationCache.get(cacheKey)!;
+    // Simulate streaming for cached content
+    return new Promise(resolve => {
+      let currentLen = 0;
+      const interval = setInterval(() => {
+        currentLen += 50; // chunk size
+        if (currentLen >= cachedResult.length) {
+          onChunk(cachedResult);
+          clearInterval(interval);
+          resolve(cachedResult);
+        } else {
+          onChunk(cachedResult.substring(0, currentLen));
+        }
+      }, 20);
+    });
+  }
+
   const gemini = getGemini();
   
   if (!gemini) {
@@ -100,6 +123,7 @@ Instruksi Tambahan: Harap hasilkan persis sesuai materi dan format di atas.
         onChunk(fullText);
       }
     }
+    generationCache.set(cacheKey, fullText);
     return fullText;
   } catch (error) {
     console.error("Gemini Generation Error:", error);

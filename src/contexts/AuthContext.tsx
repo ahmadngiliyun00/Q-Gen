@@ -3,6 +3,8 @@ import { useGoogleLogin } from '@react-oauth/google';
 
 interface User {
   accessToken: string;
+  name?: string;
+  picture?: string;
 }
 
 interface AuthContextType {
@@ -26,14 +28,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const googleLogin = useGoogleLogin({
-    onSuccess: (tokenResponse) => {
-      const newUser = { accessToken: tokenResponse.access_token };
+    onSuccess: async (tokenResponse) => {
+      let newUser: User = { accessToken: tokenResponse.access_token };
+      
+      try {
+        const res = await fetch('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+        });
+        if (res.ok) {
+          const profile = await res.json();
+          newUser = { ...newUser, name: profile.name, picture: profile.picture };
+        }
+      } catch (err) {
+        console.error("Gagal mengambil profil", err);
+      }
+      
       setUser(newUser);
       setIsGuest(false);
       localStorage.setItem('qgen_user', JSON.stringify(newUser));
       localStorage.removeItem('qgen_guest');
     },
-    scope: 'https://www.googleapis.com/auth/drive.readonly',
+    scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile',
   });
 
   const login = () => {
